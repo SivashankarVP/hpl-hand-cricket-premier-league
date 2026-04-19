@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, ArrowLeft, Users, User as UserIcon, Zap, Sparkles, AlertCircle, Share2, Copy } from 'lucide-react';
+import { Trophy, ArrowLeft, Users, User as UserIcon, Zap, Sparkles, MessageSquare, Send, X, Clock, ShieldCheck, ChevronRight } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 import { useStore } from '@/store/useStore';
 import confetti from 'canvas-confetti';
@@ -11,333 +11,311 @@ const BUTTONS = [1, 2, 3, 4, 5, 6];
 
 export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
   const socket = useSocket();
-  const { user, setStats } = useStore();
+  const { user } = useStore();
   
   const [room, setRoom] = useState(initialRoom);
   const [gameState, setGameState] = useState(initialRoom?.gameState || (isDemo ? 'PLAYING' : 'LOBBY'));
   const [myMove, setMyMove] = useState<number | null>(null);
-  const [lastResult, setLastResult] = useState(null);
-  const [reaction, setReaction] = useState(null);
+  const [lastResult, setLastResult] = useState<any>(null);
+  const [reaction, setReaction] = useState<any>(null);
   const [timer, setTimer] = useState(10);
-  const [isCopied, setIsCopied] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMsg, setChatMsg] = useState("");
+  const [messages, setMessages] = useState<any[]>([]);
+  const [tossChoice, setTossChoice] = useState<string | null>(null);
 
-  // Sound effects
+  // Sounds
   const sounds = {
     bat: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a1766a.mp3'], volume: 0.5 }),
     wicket: new Howl({ src: ['https://cdn.pixabay.com/audio/2021/08/04/audio_34e107d39a.mp3'], volume: 0.6 }),
-    crowd: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/01/26/audio_2267677b10.mp3'], volume: 0.3 })
+    win: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/01/26/audio_2267677b10.mp3'], volume: 0.4 })
   };
-
-  useEffect(() => {
-    if (isDemo && gameState === 'PLAYING' && !room) {
-      // Mock room for demo
-      setRoom({
-        roomId: 'DEMO',
-        players: [
-          { id: 'me', name: username, score: 0, role: 'batsman' },
-          { id: 'ai', name: 'Bot Bravo', score: 0, role: 'bowler' }
-        ],
-        innings: 1,
-        history: [],
-        gameState: 'PLAYING'
-      });
-    }
-  }, [isDemo, gameState]);
 
   useEffect(() => {
     if (!socket || isDemo) return;
 
-    const handleRoomUpdate = (updatedRoom) => {
-        setRoom(updatedRoom);
-        setGameState(updatedRoom.gameState);
-    };
+    socket.on('playerJoined', (r) => setRoom(r));
+    socket.on('tossChoiceLocked', ({ choice }) => setTossChoice(choice));
+    
+    socket.on('tossResult', (res) => {
+        setLastResult({ type: 'TOSS', ...res });
+        setGameState('ROLE_SELECT');
+        setMyMove(null);
+    });
 
-    socket.on('playerJoined', handleRoomUpdate);
-    socket.on('gameStarted', handleRoomUpdate);
-    socket.on('moveResult', ({ room, lastResult }) => {
+    socket.on('gameStarted', (r) => {
+        setRoom(r);
+        setGameState('PLAYING');
+        setLastResult(null);
+    });
+
+    socket.on('updateScore', ({ room, lastResult }) => {
         setRoom(room);
         setLastResult(lastResult);
         setMyMove(null);
         sounds.bat.play();
+        setTimer(10);
     });
-    socket.on('inningsOver', (room) => {
+
+    socket.on('playerOut', ({ room }) => {
         setRoom(room);
+        setLastResult({ type: 'OUT' });
         setMyMove(null);
-        setLastResult(null);
         sounds.wicket.play();
+        setTimer(10);
     });
-    socket.on('gameOver', (room) => {
-        setRoom(room);
+
+    socket.on('matchResult', (r) => {
+        setRoom(r);
         setGameState('FINISHED');
-        if (room.winner === socket.id) {
-            confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
-            sounds.crowd.play();
+        if (r.winner === socket.id) {
+            confetti({ particleCount: 200, spread: 90 });
+            sounds.win.play();
         }
     });
-    socket.on('tossResult', (res) => {
-        setLastResult({ type: 'TOSS', ...res });
-        if (res.winnerId === socket.id) setGameState('ROLE_SELECT');
-    });
-    socket.on('reactionReceived', ({ emoji, senderId }) => {
-        setReaction({ emoji, senderId });
-        setTimeout(() => setReaction(null), 2000);
+
+    socket.on('messageReceived', (msg) => {
+        setMessages(prev => [...prev, msg]);
     });
 
     return () => {
         socket.off('playerJoined');
-        socket.off('gameStarted');
-        socket.off('moveResult');
-        socket.off('inningsOver');
-        socket.off('gameOver');
+        socket.off('tossChoiceLocked');
         socket.off('tossResult');
-        socket.off('reactionReceived');
+        socket.off('gameStarted');
+        socket.off('updateScore');
+        socket.off('playerOut');
+        socket.off('matchResult');
+        socket.off('messageReceived');
     };
   }, [socket, isDemo]);
 
-  // Keyboard Support
+  // Timer Effect
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        const num = parseInt(e.key);
-        if (num >= 1 && num <= 6) handleMove(num);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [myMove, gameState]);
-
-  // Demo AI Runner
-  useEffect(() => {
-    if (isDemo && myMove !== null && gameState === 'PLAYING') {
-        const timeout = setTimeout(() => {
-            const aiMove = Math.floor(Math.random() * 6) + 1;
-            processDemoMove(aiMove);
+    if (gameState === 'PLAYING' && myMove === null) {
+        const interval = setInterval(() => {
+            setTimer(prev => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    // handleAutoMove(Math.floor(Math.random() * 6) + 1);
+                    return 0;
+                }
+                return prev - 1;
+            });
         }, 1000);
-        return () => clearTimeout(timeout);
+        return () => clearInterval(interval);
     }
-  }, [myMove, isDemo]);
+  }, [gameState, myMove]);
 
   const handleMove = (val: number) => {
-    if (myMove !== null || gameState !== 'PLAYING') return;
+    if (myMove !== null) return;
     setMyMove(val);
-    if (!isDemo) socket.emit('makeMove', { roomId: room.roomId, move: val });
+
+    if (gameState === 'TOSS') {
+        socket.emit('sendTossNumber', { roomId: room.roomId, number: val });
+    } else if (gameState === 'PLAYING') {
+        socket.emit('sendNumber', { roomId: room.roomId, number: val });
+    }
   };
 
-  const processDemoMove = (aiMove: number) => {
-      // (Similar to previous demo logic but updating room state)
-      const newRoom = { ...room };
-      const me = newRoom.players[0];
-      const ai = newRoom.players[1];
-      const batsman = me.role === 'batsman' ? me : ai;
-      const bowler = me.role === 'bowler' ? me : ai;
-      const batMove = me.role === 'batsman' ? myMove : aiMove;
-      const bowlMove = me.role === 'bowler' ? myMove : aiMove;
-
-      if (batMove === bowlMove) {
-          sounds.wicket.play();
-          if (newRoom.innings === 1) {
-              newRoom.innings = 2;
-              newRoom.target = batsman.score + 1;
-              newRoom.players.forEach(p => p.role = (p.role === 'batsman' ? 'bowler' : 'batsman'));
-          } else {
-              setGameState('FINISHED');
-              newRoom.winner = bowler.id;
-          }
-      } else {
-          sounds.bat.play();
-          batsman.score += batMove;
-          if (newRoom.innings === 2 && batsman.score >= newRoom.target) {
-              setGameState('FINISHED');
-              newRoom.winner = batsman.id;
-          }
-      }
-      setRoom(newRoom);
-      setLastResult({ batMove, bowlMove, batsmanName: batsman.name });
-      setMyMove(null);
+  const handleTossChoice = (choice: string) => {
+      socket.emit('tossChoice', { roomId: room.roomId, choice });
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/room/${room?.roomId}`);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleRoleSelect = (role: string) => {
+      socket.emit('selectRole', { roomId: room.roomId, role });
+  };
+
+  const sendChat = () => {
+      if (!chatMsg.trim()) return;
+      socket.emit('sendMessage', { roomId: room.roomId, message: chatMsg, username });
+      setChatMsg("");
   };
 
   const me = room?.players.find(p => p.id === (isDemo ? 'me' : socket?.id)) || { name: username, score: 0, role: 'batsman' };
-  const opp = room?.players.find(p => p.id !== (isDemo ? 'me' : socket?.id)) || { name: isDemo ? 'Bot Bravo' : '...', score: 0, role: 'bowler' };
+  const opp = room?.players.find(p => p.id !== (isDemo ? 'me' : socket?.id)) || { name: 'Player 2', score: 0, role: 'bowler' };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col overflow-hidden">
-      {/* Dynamic Header */}
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-inter overflow-hidden selection:bg-yellow-500 selection:text-black">
+      {/* Premium Navbar */}
       <div className="p-4 flex items-center justify-between border-b border-white/5 glass z-50">
         <button onClick={onExit} className="p-2 hover:bg-white/5 rounded-2xl transition-all">
           <ArrowLeft size={20} className="text-gray-400" />
         </button>
         <div className="text-center">
-            <h1 className="text-xl font-black italic gold-text leading-tight tracking-tighter">HPL ARENA</h1>
-            <div className="flex items-center gap-2 justify-center">
-                <span className={`w-1.5 h-1.5 rounded-full ${isDemo ? 'bg-orange-500' : 'bg-green-500'} animate-pulse`} />
-                <p className="text-[9px] uppercase tracking-widest font-bold opacity-60">
-                    {isDemo ? "OFFLINE DEMO" : `LIVE: ${room?.roomId}`}
-                </p>
+            <div className="flex items-center gap-1.5 justify-center mb-0.5">
+                <ShieldCheck size={14} className="text-emerald-500" />
+                <h1 className="text-lg font-black italic gold-text tracking-tighter uppercase">HPL Arena</h1>
             </div>
+            <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-40">
+                {isDemo ? "Practice Mode" : `Match # ${room?.roomId}`}
+            </p>
         </div>
-        <div className="flex gap-2">
-            {!isDemo && room?.gameState === 'LOBBY' && (
-                <button onClick={copyLink} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
-                    {isCopied ? <Sparkles size={18} className="text-yellow-500" /> : <Share2 size={18} />}
-                </button>
-            )}
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20">
-                <Users size={16} />
-            </div>
-        </div>
+        <button onClick={() => setChatOpen(true)} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all relative">
+            <MessageSquare size={20} />
+            {messages.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
+        </button>
       </div>
 
-      <div className="flex-1 flex flex-col p-4 space-y-4 max-w-2xl mx-auto w-full relative">
+      <div className="flex-1 flex flex-col p-4 max-w-xl mx-auto w-full relative">
         <AnimatePresence mode="wait">
           {gameState === 'LOBBY' && (
-             <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-8">
-                <div className="relative">
-                    <div className="w-32 h-32 rounded-[2.5rem] bg-blue-500/10 border-2 border-dashed border-blue-500/30 animate-spin-slow" />
+             <motion.div key="lobby" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-10">
+                <div className="relative group">
+                    <div className="w-36 h-36 rounded-[3rem] bg-yellow-500/5 border-2 border-dashed border-yellow-500/20 animate-spin-slow group-hover:border-yellow-500/40 transition-colors" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <Users size={48} className="text-blue-500" />
+                        <Users size={52} className="text-yellow-500 animate-pulse" />
                     </div>
                 </div>
-                <div className="text-center space-y-2">
-                    <h2 className="text-3xl font-black italic tracking-tight">WAITING FOR CHAMPIONS</h2>
-                    <p className="text-gray-500 text-sm max-w-xs">Match will start automatically once the opponent joins the arena.</p>
+                <div className="text-center space-y-3">
+                    <h2 className="text-3xl font-black italic tracking-tighter">WAITING LOBBY</h2>
+                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest leading-relaxed">
+                        Match starts once opponent enters <br />
+                        <span className="text-yellow-500/80">Share code: {room?.roomId}</span>
+                    </p>
                 </div>
-                <div className="w-full glass p-6 rounded-[2.5rem] border border-white/10 space-y-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-center text-gray-500">Share match code</p>
+                <div className="w-full bg-[#111] p-6 rounded-[2.5rem] border border-white/5 space-y-4 shadow-2xl">
                     <div className="flex gap-2">
-                        <div className="flex-1 bg-white/5 p-4 rounded-2xl border border-white/5 text-2xl font-black tracking-widest text-yellow-500 text-center">
+                        <div className="flex-1 bg-white/5 p-4 rounded-3xl border border-white/5 text-2xl font-black tracking-[0.5em] text-center text-gray-300">
                             {room?.roomId}
                         </div>
-                        <button onClick={copyLink} className="p-4 bg-yellow-500 text-blue-950 rounded-2xl hover:bg-yellow-400 transition-all font-black">
-                            <Copy size={24} />
+                        <button className="p-4 bg-yellow-500 text-black rounded-3xl active:scale-95 transition-all">
+                            <Zap size={24} />
                         </button>
                     </div>
                 </div>
              </motion.div>
           )}
 
-          {gameState === 'PLAYING' && (
-             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
-                {/* Visual Scoreboard (Premium) */}
-                <div className="mb-6 grid grid-cols-2 gap-3">
-                    <div className={`glass p-5 rounded-[2rem] border transition-all ${me.role === 'batsman' ? 'border-yellow-500/30 ring-1 ring-yellow-500/20' : 'border-white/5'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className={`w-2 h-2 rounded-full ${me.role === 'batsman' ? 'bg-yellow-500' : 'bg-blue-500'}`} />
-                            <p className="text-[10px] uppercase font-bold tracking-widest opacity-60">YOU ({me.role})</p>
+          {gameState === 'TOSS' && (
+             <motion.div key="toss" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex-1 flex flex-col items-center justify-center space-y-10">
+                <div className="text-center space-y-2">
+                    <h2 className="text-4xl font-black italic gold-text tracking-tighter">THE TOSS</h2>
+                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">{tossChoice ? "PICK YOUR NUMBER" : "SELECT ODD OR EVEN"}</p>
+                </div>
+
+                {!tossChoice ? (
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                        <button onClick={() => handleTossChoice('even')} className="p-8 bg-blue-600 rounded-[2.5rem] font-black text-2xl italic tracking-tighter border-b-8 border-blue-900 active:translate-y-1 active:border-b-0 transition-all">EVEN</button>
+                        <button onClick={() => handleTossChoice('odd')} className="p-8 bg-red-600 rounded-[2.5rem] font-black text-2xl italic tracking-tighter border-b-8 border-red-900 active:translate-y-1 active:border-b-0 transition-all">ODD</button>
+                    </div>
+                ) : (
+                    <div className="w-full space-y-8">
+                        <div className="text-center font-bold text-gray-400 uppercase tracking-widest text-xs">
+                            System Sum Logic: {tossChoice.toUpperCase()} WINS
                         </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-5xl font-black italic tracking-tighter">{me.score}</span>
-                            <span className="text-xs font-bold opacity-40">RUNS</span>
+                        <div className="grid grid-cols-6 gap-2">
+                            {BUTTONS.map(n => (
+                                <button key={n} disabled={myMove !== null} onClick={() => handleMove(n)} className={`aspect-square rounded-2xl flex items-center justify-center text-xl font-black ${myMove === n ? 'bg-yellow-500 text-black' : 'bg-white/5 disabled:opacity-50'}`}>{n}</button>
+                            ))}
                         </div>
                     </div>
-                    <div className={`glass p-5 rounded-[2rem] border text-right transition-all ${opp.role === 'batsman' ? 'border-yellow-500/30' : 'border-white/5'}`}>
-                        <div className="flex items-center gap-2 mb-2 justify-end">
-                            <p className="text-[10px] uppercase font-bold tracking-widest opacity-60">{opp.name} ({opp.role})</p>
-                            <span className={`w-2 h-2 rounded-full ${opp.role === 'batsman' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                )}
+             </motion.div>
+          )}
+
+          {gameState === 'ROLE_SELECT' && (
+             <motion.div key="role" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-8">
+                <div className="text-center">
+                    <Sparkles className="mx-auto text-yellow-500 mb-4" size={48} />
+                    <h2 className="text-3xl font-black italic gold-text">MATCH READY!</h2>
+                    <p className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mt-2">{lastResult?.winnerName} choosing field...</p>
+                </div>
+                
+                {lastResult?.winnerId === (isDemo ? 'me' : socket?.id) ? (
+                    <div className="grid grid-cols-1 gap-4 w-full">
+                        <button onClick={() => handleRoleSelect('batting')} className="w-full bg-emerald-500 p-6 rounded-[2rem] font-black text-xl italic text-black flex items-center justify-between">BAT FIRST <ChevronRight /></button>
+                        <button onClick={() => handleRoleSelect('bowling')} className="w-full bg-sky-500 p-6 rounded-[2rem] font-black text-xl italic text-black flex items-center justify-between">BOWL FIRST <ChevronRight /></button>
+                    </div>
+                ) : (
+                    <div className="animate-pulse text-gray-600 font-bold italic">Opponent is selecting...</div>
+                )}
+             </motion.div>
+          )}
+
+          {gameState === 'PLAYING' && (
+             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
+                {/* Zomato-style Header Info */}
+                <div className="flex justify-between items-end mb-6">
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Innings {room?.innings}</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black italic tracking-tighter leading-none">{me.score}</span>
+                            <span className="text-xs font-bold text-gray-600">RUNS</span>
                         </div>
-                        <div className="flex items-baseline justify-end gap-1">
-                            <span className="text-5xl font-black italic tracking-tighter">{opp.score}</span>
+                    </div>
+                    <div className="text-right space-y-1">
+                        <div className="flex items-center gap-2 justify-end">
+                            <Clock size={12} className={timer < 4 ? 'text-red-500' : 'text-gray-600'} />
+                            <span className={`text-sm font-black italic ${timer < 4 ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}>{timer}s</span>
                         </div>
+                        <p className="text-[10px] font-black uppercase text-yellow-500">{me.role.toUpperCase()}</p>
                     </div>
                 </div>
 
-                {room?.target && (
-                    <div className="mb-4 bg-blue-500/10 border border-blue-500/20 rounded-3xl p-3 flex justify-between items-center px-6">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Target Chase</p>
-                        <p className="text-sm font-black italic text-white">{room.target} Runs</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-yellow-500">{Math.max(0, room.target - me.score)} Left</p>
+                {/* Scoreboard Strip */}
+                <div className="bg-[#111] p-3 rounded-2xl border border-white/5 flex justify-between items-center px-5 mb-6">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-black">{opp.name[0]}</div>
+                        <span className="text-[10px] font-bold text-gray-500">{opp.name}</span>
                     </div>
-                )}
-
-                {/* Match Canvas */}
-                <div className="flex-1 glass rounded-[3rem] border border-white/10 p-8 flex flex-col items-center justify-center relative overflow-hidden">
-                    <div className="w-full flex justify-between items-center px-6 z-10">
-                        <div className="flex flex-col items-center gap-3">
-                            <motion.div animate={myMove ? { scale: [1, 1.1, 1] } : {}} className={`w-20 h-20 rounded-3xl ${myMove ? 'bg-yellow-500 text-blue-950 shadow-[0_0_20px_rgba(255,215,0,0.3)]' : 'bg-white/5 border border-white/10'} flex items-center justify-center transition-all duration-300`}>
-                                <UserIcon size={32} />
-                            </motion.div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                                {myMove ? 'Decision Made' : 'Your Turn'}
-                            </p>
+                    <div className="flex gap-4 items-center">
+                        <div className="text-right">
+                            <p className="text-[8px] font-bold text-gray-600 uppercase">Score</p>
+                            <p className="text-xs font-black">{opp.score}</p>
                         </div>
-
-                        <div className="text-center font-black italic text-2xl opacity-10 tracking-[0.5em]">ARENA</div>
-
-                        <div className="flex flex-col items-center gap-3">
-                            <div className={`w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-300`}>
-                                <UserIcon size={32} className="opacity-40" />
+                        {room?.target && (
+                            <div className="h-6 w-px bg-white/10" />
+                        )}
+                        {room?.target && (
+                            <div className="text-right">
+                                <p className="text-[8px] font-bold text-yellow-500 uppercase">Target</p>
+                                <p className="text-xs font-black text-yellow-500">{room.target}</p>
                             </div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 animate-pulse">Waiting</p>
-                        </div>
+                        )}
                     </div>
+                </div>
 
-                    {/* Result Center */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <AnimatePresence mode="wait">
-                            {lastResult ? (
-                                <motion.div key="res" initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} className="flex flex-col items-center gap-2">
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-center">
-                                            <p className="text-5xl font-black italic gold-text drop-shadow-lg">{lastResult.batMove}</p>
-                                            <p className="text-[8px] font-black uppercase text-gray-500">Bat</p>
-                                        </div>
-                                        <div className="w-0.5 h-12 bg-white/10 rotate-12" />
-                                        <div className="text-center">
-                                            <p className="text-5xl font-black italic text-red-500 drop-shadow-lg">{lastResult.bowlMove}</p>
-                                            <p className="text-[8px] font-black uppercase text-gray-500">Bowl</p>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ) : (
-                                <div className="text-8xl font-black opacity-[0.02] italic tracking-tighter select-none">HPL</div>
-                            )}
-                        </AnimatePresence>
-                    </div>
+                {/* Main Arena Display */}
+                <div className="flex-1 bg-[#111] rounded-[2.5rem] border border-white/5 relative overflow-hidden flex flex-col items-center justify-center p-8">
+                    <AnimatePresence mode="wait">
+                        {myMove ? (
+                            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center">
+                                <div className="text-[10px] font-black text-gray-600 mb-2 tracking-[0.2em]">DECISION LOCKED</div>
+                                <div className="w-24 h-24 rounded-3xl bg-yellow-500 text-black flex items-center justify-center text-5xl font-black italic shadow-[0_0_40px_rgba(255,215,0,0.2)]">
+                                    {myMove}
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+                                <p className="text-6xl font-black opacity-[0.03] select-none italic tracking-tighter">HPL CRICKET</p>
+                                <p className="text-[9px] font-bold text-gray-800 uppercase tracking-[0.5em] mt-4">Make Your Move</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    {/* Reactions */}
+                    {/* Result Overlay */}
                     <AnimatePresence>
-                        {reaction && (
-                            <motion.div initial={{ y: 20, opacity: 0, scale: 0 }} animate={{ y: -50, opacity: 1, scale: 2 }} exit={{ opacity: 0 }} className="absolute text-5xl z-20">
-                                {reaction.emoji}
+                        {lastResult && !myMove && (
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-10 flex gap-10">
+                                <div className="text-center">
+                                    <p className="text-sm font-bold text-gray-500">YOU</p>
+                                    <p className="text-4xl font-black italic">{room.players.find(p => p.id === (isDemo ? 'me' : socket?.id)).role === 'batsman' ? lastResult.batMove : lastResult.bowlMove}</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-bold text-gray-500">OPP</p>
+                                    <p className="text-4xl font-black italic text-red-500">{room.players.find(p => p.id !== (isDemo ? 'me' : socket?.id)).role === 'batsman' ? lastResult.batMove : lastResult.bowlMove}</p>
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* Controls Area */}
-                <div className="mt-6 space-y-6">
-                    <div className="grid grid-cols-6 gap-2 px-2">
-                        {BUTTONS.map(num => (
-                            <button 
-                                key={num}
-                                disabled={myMove !== null}
-                                onClick={() => handleMove(num)}
-                                className={`aspect-square rounded-2xl flex items-center justify-center text-2xl font-black italic transition-all transform active:scale-90 border-b-4 
-                                    ${myMove === num 
-                                        ? 'bg-yellow-500 text-blue-950 border-yellow-700' 
-                                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                                    } disabled:opacity-50`}
-                            >
-                                {num}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="flex justify-center gap-4 p-2">
-                        {['🏏', '🔥', '😂', '💯', '👊', '🧤'].map(e => (
-                            <button 
-                                key={e}
-                                onClick={() => {
-                                    if (isDemo) { setReaction({ emoji: e, senderId: 'me' }); setTimeout(() => setReaction(null), 1500); }
-                                    else socket.emit('sendReaction', { roomId: room.roomId, emoji: e });
-                                }}
-                                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 active:scale-90 transition-all text-xl"
-                            >
-                                {e}
-                            </button>
+                {/* Controls */}
+                <div className="mt-8 space-y-6">
+                    <div className="grid grid-cols-6 gap-2">
+                        {BUTTONS.map(n => (
+                            <button key={n} disabled={myMove !== null} onClick={() => handleMove(n)} className={`aspect-square rounded-2xl flex items-center justify-center text-2xl font-black italic transition-all border-b-4 ${myMove === n ? 'bg-yellow-500 text-black border-yellow-700' : 'bg-[#181818] border-black hover:bg-[#222]'}`}>{n}</button>
                         ))}
                     </div>
                 </div>
@@ -345,62 +323,63 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
           )}
 
           {gameState === 'FINISHED' && (
-             <motion.div key="finish" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-8 text-center">
+             <motion.div key="finish" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-10 text-center">
                 <div className="relative">
-                    <Trophy size={140} className="text-yellow-500 drop-shadow-[0_0_30px_rgba(255,215,0,0.4)]" />
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="absolute -inset-10 border-2 border-dashed border-yellow-500/10 rounded-full" />
+                    <div className="p-8 bg-yellow-500/10 rounded-[3rem] border border-yellow-500/20">
+                        <Trophy size={110} className="text-yellow-500" />
+                    </div>
                 </div>
                 <div>
-                   <h2 className="text-5xl font-black italic gold-text tracking-tighter mb-2">
-                        {room?.winner === (isDemo ? 'me' : socket?.id) ? "CHAMPION!" : "WELL PLAYED!"}
-                   </h2>
-                   <p className="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs opacity-60">Match Concluded</p>
+                    <h2 className="text-5xl font-black italic gold-text tracking-tighter uppercase leading-tight mb-2">
+                        {room?.winner === (isDemo ? 'me' : socket?.id) ? "Match Won!" : "Hard Luck!"}
+                    </h2>
+                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.4em]">Tournament Final Results</p>
                 </div>
-                
-                <div className="w-full glass p-8 rounded-[3rem] border border-white/10 space-y-2">
-                    <p className="text-[10px] font-black uppercase text-gray-500">Final Summary</p>
-                    <div className="flex justify-center items-center gap-8">
-                        <div>
+                <div className="w-full bg-[#111] p-6 rounded-[2.5rem] border border-white/5">
+                    <div className="flex justify-between items-center px-10">
+                        <div className="text-center">
                             <p className="text-3xl font-black">{me.score}</p>
-                            <p className="text-[8px] font-bold opacity-40">YOU</p>
+                            <p className="text-[9px] font-black uppercase text-gray-600 tracking-widest">You</p>
                         </div>
-                        <div className="w-px h-8 bg-white/10" />
-                        <div>
+                        <div className="h-10 w-px bg-white/10" />
+                        <div className="text-center">
                             <p className="text-3xl font-black">{opp.score}</p>
-                            <p className="text-[8px] font-bold opacity-40">{opp.name}</p>
+                            <p className="text-[9px] font-black uppercase text-gray-600 tracking-widest">Opponent</p>
                         </div>
                     </div>
                 </div>
-
-                <div className="w-full flex flex-col gap-3">
-                    <button onClick={onExit} className="w-full bg-yellow-500 text-blue-950 py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-yellow-500/10 active:scale-95 transition-all">
-                        PLAY AGAIN
-                    </button>
-                    <button onClick={onExit} className="w-full bg-white/10 py-5 rounded-[2rem] font-black text-white hover:bg-white/20 transition-all">
-                        HOME
-                    </button>
-                </div>
+                <button onClick={onExit} className="w-full bg-yellow-500 text-black py-5 rounded-[2rem] font-black text-lg tracking-tighter italic">FINISH & EXIT</button>
              </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* History Drawer */}
-      {gameState === 'PLAYING' && (
-          <div className="px-6 py-4 border-t border-white/5 glass">
-              <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                  {room?.history?.slice(-12).reverse().map((h, i) => (
-                      <div key={i} className={`flex-shrink-0 w-10 h-10 rounded-xl flex flex-col items-center justify-center border
-                        ${h.batMove === h.bowlMove ? 'bg-red-500/20 border-red-500/30' : 'bg-emerald-500/20 border-emerald-500/30'}`}>
-                        <span className="text-xs font-black italic leading-none">{h.batMove === h.bowlMove ? 'W' : h.batMove}</span>
-                      </div>
-                  ))}
-                  {(!room?.history || room.history.length === 0) && (
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-600">Match History starting...</p>
-                  )}
-              </div>
-          </div>
-      )}
+      {/* Chat Drawers */}
+      <AnimatePresence>
+          {chatOpen && (
+              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[60] bg-black/90 p-6 flex flex-col">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black italic gold-text">MATCH CHAT</h3>
+                      <button onClick={() => setChatOpen(false)} className="p-2 bg-white/5 rounded-full"><X size={20} /></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar mb-4">
+                      {messages.map((m, i) => (
+                          <div key={i} className={`flex flex-col ${m.senderId === (isDemo ? 'me' : socket?.id) ? 'items-end' : 'items-start'}`}>
+                              <span className="text-[10px] font-black text-gray-600 mb-1 uppercase tracking-widest">{m.username}</span>
+                              <div className={`p-4 rounded-[1.5rem] max-w-[80%] font-bold text-sm ${m.senderId === (isDemo ? 'me' : socket?.id) ? 'bg-yellow-500 text-black rounded-tr-none' : 'bg-white/10 rounded-tl-none text-gray-200'}`}>
+                                  {m.message}
+                              </div>
+                          </div>
+                      ))}
+                      {messages.length === 0 && <p className="text-center text-gray-700 text-xs mt-20 italic">No messages yet. Say hello!</p>}
+                  </div>
+                  <div className="flex gap-2">
+                      <input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} className="flex-1 bg-white/5 p-4 rounded-3xl outline-none border border-white/10" placeholder="Type message..." />
+                      <button onClick={sendChat} className="p-4 bg-yellow-500 text-black rounded-3xl"><Send size={24} /></button>
+                  </div>
+              </motion.div>
+          )}
+      </AnimatePresence>
     </div>
   );
 }
