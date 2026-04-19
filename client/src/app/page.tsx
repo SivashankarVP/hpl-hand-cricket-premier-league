@@ -29,14 +29,30 @@ export default function Home() {
   }, [socket, searchParams]);
 
   const handleStartGame = (mode: 'create' | 'join' | 'demo') => {
-    if (!usernameInput.trim()) return setError("Please pick a name!");
-    if (!user || user.username !== usernameInput) setUser({ username: usernameInput, avatar: '🏏' });
+    let finalUsername = usernameInput.trim();
+    
+    // Auto-generate name if none provided
+    if (!finalUsername) {
+      finalUsername = `CHAMP_${Math.floor(Math.random() * 9000) + 1000}`;
+      setUsernameInput(finalUsername);
+    }
 
-    if (mode === 'create') socket.emit('createRoom', { username: usernameInput });
-    else if (mode === 'join') {
+    // Save user to store
+    if (!user || user.username !== finalUsername) {
+        setUser({ username: finalUsername, avatar: '🏏' });
+    }
+
+    if (mode === 'create') {
+        const tempRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        router.push(`/room/${tempRoomId}`);
+        // The room creator logic on the server will handle the actual registration
+        // when the user lands on the room page.
+    } else if (mode === 'join') {
         if (!roomCode) return setError("Enter a room code!");
         router.push(`/room/${roomCode.toUpperCase()}`);
-    } else if (mode === 'demo') router.push('/demo');
+    } else if (mode === 'demo') {
+        router.push('/demo');
+    }
   };
 
   return (

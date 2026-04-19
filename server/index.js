@@ -44,18 +44,31 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', async ({ roomId, username }) => {
     try {
-      const room = await Room.findOne({ roomId: roomId.toUpperCase() });
-      if (!room) return socket.emit('error', 'Room not found');
-      if (room.players.length >= 2) return socket.emit('error', 'Room is full');
+      let room = await Room.findOne({ roomId: roomId.toUpperCase() });
+      
+      if (!room) {
+        // Automatically create and generate the room if it doesn't exist
+        room = await Room.create({
+          roomId: roomId.toUpperCase(),
+          players: [{ id: socket.id, name: username, score: 0 }],
+          gameState: 'LOBBY'
+        });
+        socket.join(roomId);
+        socket.emit('roomCreated', room);
+        console.log(`🏨 Room ${room.roomId} auto-created for ${username}`);
+      } else {
+        if (room.players.length >= 2) return socket.emit('error', 'Room is full');
 
-      room.players.push({ id: socket.id, name: username, score: 0 });
-      room.gameState = 'TOSS';
-      await room.save();
+        room.players.push({ id: socket.id, name: username, score: 0 });
+        room.gameState = 'TOSS';
+        await room.save();
 
-      socket.join(roomId);
-      io.to(roomId).emit('playerJoined', room);
+        socket.join(roomId);
+        io.to(roomId).emit('playerJoined', room);
+        console.log(`👤 ${username} joined ${roomId}`);
+      }
     } catch (err) {
-      socket.emit('error', 'Failed to join room');
+      socket.emit('error', 'Failed to join/create room');
     }
   });
 

@@ -24,6 +24,10 @@ export default function RoomPage() {
         setRoomData(room);
     });
 
+    socket.on('roomCreated', (room) => {
+        setRoomData(room);
+    });
+
     socket.on('gameStarted', (room) => {
         setRoomData(room);
     });
