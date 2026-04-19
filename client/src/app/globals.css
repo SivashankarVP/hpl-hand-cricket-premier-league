@@ -1,15 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;400;600;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --primary: #002D62; /* Navy Blue */
-  --secondary: #FFD700; /* Gold */
-  --accent: #DC143C; /* Crimson */
-  --card: #121212;
-  --border: #333333;
+  --background: #0B0E11; /* Deep Modern Charcoal */
+  --foreground: #F8F9FA;
+  --primary: #FFD700; /* Vibrant Gold */
+  --secondary: #006AFF; /* Digital Blue */
+  --accent: #FF3131; /* Neon Red */
+  --card: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme='light'] {
@@ -25,14 +27,29 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   overflow-x: hidden;
+  background-attachment: fixed;
+}
+
+h1, h2, .font-heading {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 0.05em;
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-border {
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.15);
+}
+
+.neon-text {
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 .hpl-gradient {
