@@ -5,93 +5,127 @@
 @tailwind utilities;
 
 :root {
-  --background: #0B0E11; /* Deep Modern Charcoal */
-  --foreground: #F8F9FA;
-  --primary: #FFD700; /* Vibrant Gold */
-  --secondary: #006AFF; /* Digital Blue */
-  --accent: #FF3131; /* Neon Red */
-  --card: rgba(255, 255, 255, 0.03);
-  --border: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme='light'] {
-  --background: #f4f7f6;
-  --foreground: #171717;
-  --primary: #0056b3;
-  --secondary: #ffb700;
-  --accent: #e63946;
-  --card: #ffffff;
-  --border: #e2e8f0;
+  --background: #06080A;
+  --foreground: #FFFFFF;
+  --primary: #FFD700;
+  --secondary: #007AFF;
+  --accent: #FF3B30;
+  --glass: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.06);
+  --surface: #0E1217;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Outfit', sans-serif;
-  overflow-x: hidden;
-  background-attachment: fixed;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-h1, h2, .font-heading {
+/* Perfect Centering Utility */
+.center-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.font-heading {
   font-family: 'Bangers', cursive;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
-.glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* The "Box" - Game Container */
+.game-container {
+  width: 100%;
+  max-width: 480px;
+  height: 100%;
+  max-height: 850px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.03);
+  display: flex;
+  flex-direction: column;
 }
 
-.neon-border {
-  border: 1px solid var(--primary);
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.15);
+@media (max-width: 500px) {
+  .game-container {
+    border-radius: 0;
+    max-height: 100vh;
+    border: none;
+  }
 }
 
-.neon-text {
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+/* Premium UI Elements */
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(40px);
+  border: 1px solid var(--border);
 }
 
-.hpl-gradient {
-  background: linear-gradient(135deg, var(--primary) 0%, #001530 100%);
+.broadcast-strip {
+  background: linear-gradient(to right, rgba(0, 50, 100, 0.8), rgba(0, 20, 40, 0.9));
+  border-bottom: 2px solid var(--primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-.gold-text {
-  background: linear-gradient(to right, #ffd700, #ffae00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.btn-neon {
+  background: #1A1F26;
+  border: 1px solid var(--border);
+  border-bottom: 4px solid #000;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.scoreboard-glow {
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+.btn-neon:active {
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #000;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-style: italic;
+  box-shadow: 0 5px 20px rgba(255, 215, 0, 0.2);
 }
 
 /* Animations */
-@keyframes pulse-gold {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
-  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
-.animate-pulse-gold {
-  animation: pulse-gold 2s infinite;
+.shimmer {
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shine 3s infinite;
 }
 
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+.gold-text {
+  background: linear-gradient(45deg, #FFD700 30%, #FFF5B7 50%, #FFD700 70%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: shine-text 5s linear infinite;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+@keyframes shine-text {
+  to { background-position: 200% center; }
 }
-.no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-

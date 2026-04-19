@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, ArrowLeft, Users, User as UserIcon, Zap, Sparkles, MessageSquare, Send, X, Clock, ShieldCheck, ChevronRight, Share2, Info } from 'lucide-react';
+import { Trophy, ArrowLeft, Users, User as UserIcon, Zap, Sparkles, MessageSquare, Send, X, Clock, ShieldCheck, ChevronRight, Share2, Info, Activity, Globe, Wifi } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 import { useStore } from '@/store/useStore';
 import CountUp from '@/components/UI/CountUp';
@@ -68,181 +68,174 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
     else if (gameState === 'PLAYING') socket.emit('sendNumber', { roomId: room.roomId, number: val });
   };
 
+  const handleTossChoice = (choice: string) => {
+      socket.emit('tossChoice', { roomId: room.roomId, choice });
+  };
+
+  const handleRoleSelect = (role: string) => {
+      socket.emit('selectRole', { roomId: room.roomId, role });
+  };
+
+  const sendChat = () => {
+      if (!chatMsg.trim()) return;
+      socket.emit('sendMessage', { roomId: room.roomId, message: chatMsg, username });
+      setChatMsg("");
+  };
+
   const me = room?.players.find(p => p.id === (isDemo ? 'me' : socket?.id)) || { name: username, score: 0, role: 'batsman' };
   const opp = room?.players.find(p => p.id !== (isDemo ? 'me' : socket?.id)) || { name: 'Player 2', score: 0, role: 'bowler' };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-white flex flex-col font-sans overflow-hidden">
-      {/* Dynamic Animated Background */}
-      <div className="absolute inset-0 z-0 overflow-hidden opacity-20 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 blur-[120px] rounded-full" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-yellow-600 blur-[120px] rounded-full" />
-      </div>
-
-      <div className="z-10 p-4 flex items-center justify-between border-b border-white/5 glass">
-        <button onClick={onExit} className="p-2 hover:bg-white/5 rounded-2xl transition-all">
-          <ArrowLeft size={20} className="text-gray-400" />
-        </button>
-        <div className="text-center group cursor-pointer">
-            <h1 className="text-2xl font-heading gold-text italic tracking-wider leading-none">HPL ARENA</h1>
-            <p className="text-[8px] font-black uppercase tracking-[0.4em] opacity-40 group-hover:opacity-100 transition-opacity">
-                Premier League Season 1
-            </p>
+    <div className="game-container">
+      {/* 📡 BROADCAST TOP BAR */}
+      <div className="broadcast-strip p-4 flex items-center justify-between z-50">
+        <div className="flex items-center gap-3">
+            <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                <ArrowLeft size={18} />
+            </button>
+            <div className="h-6 w-px bg-white/20" />
+            <div className="flex flex-col">
+                <h1 className="text-xl font-heading gold-text italic tracking-wider leading-none">HPL LIVE</h1>
+                <p className="text-[7px] font-black uppercase tracking-[0.4em] opacity-40">CHAMPIONS LEAGUE v1.0</p>
+            </div>
         </div>
-        <button onClick={() => setChatOpen(true)} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all relative">
-            <MessageSquare size={20} />
-            {messages.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#FF3131] rounded-full border-2 border-[#0B0E11]" />}
-        </button>
+        
+        <div className="flex items-center gap-2">
+            <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-full flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[8px] font-black tracking-widest text-emerald-500 uppercase">{isDemo ? 'OFFLINE' : 'STABLE'}</span>
+            </div>
+            <button onClick={() => setChatOpen(true)} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all relative">
+                <MessageSquare size={18} />
+                {messages.length > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />}
+            </button>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col p-4 max-w-xl mx-auto w-full relative z-10">
+      {/* 🏟️ MAIN FIELD AREA */}
+      <div className="flex-1 p-6 flex flex-col relative overflow-hidden">
+        {/* Pitch Pattern Background */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-40 bg-white/[0.02] -rotate-12 blur-3xl pointer-events-none" />
+
         <AnimatePresence mode="wait">
           {gameState === 'LOBBY' && (
-             <motion.div key="lobby" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-12">
-                <div className="relative">
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: "linear" }} className="w-40 h-40 rounded-[3.5rem] border-2 border-dashed border-yellow-500/20" />
+             <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-10">
+                <div className="relative group">
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="w-48 h-48 rounded-full border-2 border-dashed border-white/10" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-24 h-24 rounded-[2rem] bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 shadow-2xl shadow-yellow-500/10">
-                            <Users size={48} className="text-yellow-500" />
+                        <div className="w-28 h-28 rounded-full bg-white/5 flex items-center justify-center border border-white/10 shadow-3xl">
+                            <Users size={48} className="text-white/20 animate-pulse" />
                         </div>
                     </div>
                 </div>
-
                 <div className="text-center space-y-4">
-                    <h2 className="text-4xl font-heading italic tracking-tighter">WAITING FOR RIVAL</h2>
-                    <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/5 border border-white/5">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-ping" />
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Searching Match...</span>
-                    </div>
-                </div>
-
-                <div className="w-full glass p-8 rounded-[3rem] border border-white/5 space-y-4 shadow-3xl">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-center text-gray-500">SHARE MATCH ID</p>
-                    <div className="flex gap-2">
-                        <div className="flex-1 bg-white/5 p-5 rounded-3xl border border-white/5 text-3xl font-heading gold-text tracking-[0.3em] text-center">
-                            {room?.roomId}
-                        </div>
-                        <button className="p-5 bg-[var(--primary)] text-black rounded-3xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-yellow-500/10">
-                            <Share2 size={24} />
-                        </button>
+                    <h2 className="text-3xl font-heading italic gold-text">MATCHMAKING...</h2>
+                    <div className="px-6 py-4 rounded-[2rem] glass-panel space-y-2">
+                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-[0.3em]">Share Room ID</p>
+                        <p className="text-3xl font-heading tracking-[0.3em]">{room?.roomId}</p>
                     </div>
                 </div>
              </motion.div>
           )}
 
           {gameState === 'PLAYING' && (
-             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col pb-4">
-                {/* FLOATING BROADCAST SCOREBOARD */}
-                <div className="mt-4 glass p-6 rounded-[2.5rem] flex justify-between items-end border-b-4 border-yellow-500/20 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                        <Trophy size={100} />
-                    </div>
-                    
-                    <div className="space-y-1 relative z-10">
-                        <p className="text-[10px] font-black uppercase text-yellow-500 tracking-[0.2em]">{me.role} INNINGS</p>
+             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
+                {/* 📊 MINI SCORE SUMMARY */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="glass-panel p-4 rounded-3xl space-y-1 border-l-4 border-yellow-500">
+                        <p className="text-[8px] font-black uppercase text-yellow-500 tracking-widest">{me.role}</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-6xl font-heading gold-text italic tracking-tighter leading-none">
-                                <CountUp value={me.score} duration={400} />
-                            </span>
-                            <span className="text-sm font-bold text-gray-600">RUNS</span>
+                            <span className="text-4xl font-heading italic leading-none"><CountUp value={me.score} /></span>
+                            <span className="text-[10px] font-bold text-gray-600">RUNS</span>
                         </div>
                     </div>
-
-                    <div className="text-right space-y-2 relative z-10">
-                        <div className={`p-2 px-4 rounded-2xl inline-flex items-center gap-3 transition-colors ${timer < 4 ? 'bg-red-500/10 border border-red-500/20' : 'bg-white/5'}`}>
-                            <Clock size={16} className={timer < 4 ? 'text-red-500 animate-pulse' : 'text-gray-500'} />
-                            <span className={`text-xl font-heading italic ${timer < 4 ? 'text-red-500' : 'text-gray-400'}`}>{timer}S</span>
-                        </div>
-                        <div className="flex items-center gap-2 justify-end">
-                            <p className="text-[10px] font-black uppercase text-gray-500">{opp.name} IS {opp.role}</p>
-                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <div className="glass-panel p-4 rounded-3xl space-y-1 text-right border-r-4 border-blue-500">
+                        <p className="text-[8px] font-black uppercase text-blue-500 tracking-widest">{opp.role}</p>
+                        <div className="flex items-baseline justify-end gap-2">
+                            <span className="text-4xl font-heading italic leading-none"><CountUp value={opp.score} /></span>
+                            <span className="text-[10px] font-bold text-gray-600">RUNS</span>
                         </div>
                     </div>
                 </div>
 
-                {/* TARGET MINI CARD */}
                 {room?.target && (
-                    <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mt-4 bg-blue-600/10 border border-blue-600/20 rounded-3xl p-4 flex justify-between items-center px-8 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-transparent" />
-                        <div className="flex flex-col">
-                            <p className="text-[9px] font-black uppercase text-blue-400 tracking-widest">TARGET SCORE</p>
-                            <p className="text-2xl font-heading italic leading-none mt-1">{room.target}</p>
+                    <motion.div initial={{ y: -10 }} animate={{ y: 0 }} className="mb-6 bg-gradient-to-r from-blue-600/20 to-transparent border border-white/5 p-4 rounded-2xl flex justify-between items-center px-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-600 rounded-lg"><Globe size={14} /></div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase text-blue-400">Target</p>
+                                <p className="text-xl font-heading italic leading-none">{room.target}</p>
+                            </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-[10px] font-bold text-white/40 uppercase">NEED</p>
-                            <p className="text-2xl font-heading italic text-yellow-500 leading-none">{Math.max(0, room.target - me.score)}</p>
+                            <p className="text-[8px] font-bold text-gray-500 uppercase">Requirement</p>
+                            <p className="text-xl font-heading italic text-yellow-500 leading-none">{Math.max(0, room.target - me.score)} Runs</p>
                         </div>
                     </motion.div>
                 )}
 
-                {/* VISUAL ARENA */}
-                <div className="flex-1 mt-6 glass rounded-[3.5rem] border border-white/5 relative overflow-hidden flex flex-col items-center justify-center p-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5">
-                    
-                    {/* Arena Overlay Texts */}
-                    <div className="absolute top-10 left-10 text-[8px] font-black uppercase tracking-[1em] opacity-10 rotate-90 origin-top-left">HPL PREMIER</div>
-                    <div className="absolute bottom-10 right-10 text-[8px] font-black uppercase tracking-[1em] opacity-10 -rotate-90 origin-bottom-right">SEASON ONE</div>
-
+                {/* 🕹️ CENTER ACTION ZONE */}
+                <div className="flex-1 glass-panel rounded-[3rem] relative flex flex-col items-center justify-center p-8 shimmer">
                     <AnimatePresence mode="wait">
                         {myMove ? (
-                            <motion.div key="decided" initial={{ scale: 0.5, rotate: -10, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} className="flex flex-col items-center gap-6">
-                                <div className="p-8 rounded-[3rem] bg-yellow-500 text-black shadow-[0_0_60px_rgba(255,215,0,0.25)] border-4 border-yellow-200/20">
-                                    <span className="text-8xl font-heading italic leading-none">{myMove}</span>
-                                </div>
-                                <div className="px-6 py-2 rounded-full border border-yellow-500/20 bg-yellow-500/5">
-                                    <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] font-heading">Decision Locked</p>
-                                </div>
+                            <motion.div key="move" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center">
+                                <p className="text-[8px] font-black text-gray-600 mb-4 tracking-[0.4em] uppercase">Selection Locked</p>
+                                <div className="text-9xl font-heading italic gold-text leading-none">{myMove}</div>
                             </motion.div>
                         ) : (
-                            <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center group">
-                                <div className="space-y-2 opacity-5 relative">
-                                    <h3 className="text-9xl font-heading italic tracking-tighter transition-all group-hover:scale-110">HPL</h3>
-                                    <p className="text-xs font-black tracking-[1.5em]">ARENA</p>
+                            <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center group">
+                                <div className="p-6 rounded-full border border-white/5 animate-pulse mb-4">
+                                    <Clock size={32} className="text-gray-700" />
                                 </div>
-                                <div className="mt-8">
-                                    <div className="flex items-center gap-3 justify-center">
-                                         <Zap size={14} className="text-yellow-500 animate-bounce" />
-                                         <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.5em] font-heading">IT'S YOUR TURN</p>
-                                    </div>
+                                <h3 className="text-3xl font-heading italic opacity-20 tracking-widest leading-none mb-2">DECIDING...</h3>
+                                <div className="flex items-center gap-2 justify-center">
+                                    <span className="text-yellow-500 font-black italic text-xl">{timer}</span>
+                                    <span className="text-[10px] font-bold text-gray-600 uppercase">Sec Left</span>
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
 
-                    {/* Result Pop Notification */}
+                    {/* POP RESULT */}
                     <AnimatePresence>
-                         {lastResult && !myMove && (
-                             <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 bg-black/40 backdrop-blur-sm z-30 flex items-center justify-center p-8 text-center pointer-events-none">
-                                <div className="space-y-4">
-                                     <p className="text-[10px] font-black uppercase tracking-[0.5em] text-yellow-500">Last Ball Result</p>
-                                     <div className="flex items-center gap-12">
-                                        <div className="space-y-1">
-                                            <p className="text-7xl font-heading italic text-white drop-shadow-2xl">{lastResult.batMove}</p>
-                                            <p className="text-[8px] font-bold text-gray-500 uppercase">Bat Selection</p>
+                        {lastResult && !myMove && (
+                             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 flex items-center justify-center z-40 rounded-[3rem] backdrop-blur-md">
+                                <div className="space-y-6 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-yellow-500">BALL COMPLETE</p>
+                                    <div className="flex items-center gap-10">
+                                        <div>
+                                            <p className="text-6xl font-heading italic">{lastResult.batMove}</p>
+                                            <p className="text-[8px] font-bold text-gray-500 uppercase">Bat</p>
                                         </div>
-                                        <div className="w-1 h-20 bg-white/10 rounded-full rotate-12" />
-                                        <div className="space-y-1">
-                                            <p className="text-7xl font-heading italic text-[#FF3131] drop-shadow-2xl">{lastResult.bowlMove}</p>
-                                            <p className="text-[8px] font-bold text-gray-500 uppercase">Bowl Selection</p>
+                                        <div className="h-10 w-px bg-white/20" />
+                                        <div>
+                                            <p className="text-6xl font-heading italic text-red-500">{lastResult.bowlMove}</p>
+                                            <p className="text-[8px] font-bold text-gray-500 uppercase">Bowl</p>
                                         </div>
-                                     </div>
+                                    </div>
+                                    <div className="pt-4 border-t border-white/5">
+                                        <p className="text-xs font-black italic text-emerald-500 uppercase tracking-widest">
+                                            {lastResult.batMove === lastResult.bowlMove ? 'OUT!' : `+${lastResult.batMove} Runs Added`}
+                                        </p>
+                                    </div>
                                 </div>
                              </motion.div>
-                         )}
+                        )}
                     </AnimatePresence>
                 </div>
 
-                {/* GAME CONTROLS - NEON STYLE */}
-                <div className="mt-8 space-y-6">
-                    <div className="grid grid-cols-6 gap-3">
+                {/* 🔢 CONTROLLER PAD */}
+                <div className="mt-8 pt-8 border-t border-white/5">
+                    <div className="grid grid-cols-3 gap-4">
                         {BUTTONS.map(n => (
                             <button 
                                 key={n} 
                                 disabled={myMove !== null} 
                                 onClick={() => handleMove(n)} 
-                                className={`aspect-square rounded-[1.5rem] flex items-center justify-center text-3xl font-heading italic transition-all border-b-8 shadow-xl 
+                                className={`h-20 rounded-3xl btn-neon flex items-center justify-center text-4xl font-heading italic transition-all
                                     ${myMove === n 
-                                        ? 'bg-yellow-500 text-black border-yellow-800 scale-105 neon-border' 
-                                        : 'bg-[#15191E] border-[#07090B] hover:bg-[#1E252C] hover:scale-105 active:translate-y-2 active:border-b-0'
+                                        ? 'bg-yellow-500 text-black border-yellow-800' 
+                                        : 'text-white/60 hover:text-white hover:bg-white/5'
                                     }`}
                             >
                                 {n}
@@ -254,67 +247,65 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
           )}
 
           {gameState === 'FINISHED' && (
-             <motion.div key="finish" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-12 py-10">
-                <div className="relative">
-                    <div className="p-12 bg-yellow-500/10 rounded-[4rem] border-2 border-yellow-500/20 shadow-4xl shadow-yellow-500/10">
-                        <Trophy size={140} className="text-yellow-500 drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]" />
-                    </div>
-                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 4, repeat: Infinity }} className="absolute -inset-4 bg-yellow-500/5 blur-[40px] rounded-full" />
+             <motion.div key="finish" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-10 text-center">
+                <div className="p-10 rounded-[4rem] bg-yellow-500/10 border border-yellow-500/20 shadow-4xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent" />
+                    <Trophy size={150} className="text-yellow-500 relative z-10" />
                 </div>
-                <div className="space-y-2">
-                    <h2 className="text-7xl font-heading italic gold-text tracking-tighter uppercase leading-none neon-text">
-                        {room?.winner === (isDemo ? 'me' : socket?.id) ? "VICTORY!" : "DEFEATED"}
-                    </h2>
-                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.5em] font-heading">Match Official Result</p>
+                <div>
+                   <h2 className="text-6xl font-heading italic gold-text tracking-tighter uppercase leading-none mb-2">
+                        {room?.winner === (isDemo ? 'me' : socket?.id) ? "VICTORY!" : "DEFEAT"}
+                   </h2>
+                   <p className="text-gray-500 font-bold uppercase tracking-[0.5em] text-[10px]">World Championship Series</p>
                 </div>
-
-                <div className="w-full bg-[#111] p-10 rounded-[3rem] border border-white/5 space-y-4 shadow-3xl">
-                    <div className="flex justify-between items-center px-4">
-                        <div className="text-center space-y-1">
-                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Team {me.name}</p>
-                            <p className="text-5xl font-heading italic">{me.score}</p>
-                        </div>
-                        <div className="text-4xl font-heading italic text-gray-800 opacity-30">VS</div>
-                        <div className="text-center space-y-1">
-                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Team {opp.name}</p>
-                            <p className="text-5xl font-heading italic text-[#FF3131]">{opp.score}</p>
-                        </div>
-                    </div>
-                </div>
-
+                
                 <div className="w-full space-y-3">
-                    <button onClick={onExit} className="w-full bg-white text-black py-6 rounded-[2.5rem] font-heading text-2xl italic tracking-tighter active:scale-95 transition-all shadow-2xl">PLAY NEW MATCH</button>
-                    <button onClick={onExit} className="w-full bg-white/5 py-5 rounded-[2rem] font-heading text-lg italic text-gray-500 hover:text-white transition-all">BACK TO LOUNGE</button>
+                    <button onClick={onExit} className="w-full btn-primary py-6 rounded-[2.5rem] text-2xl shadow-2xl transition-all hover:scale-[1.02]">PLAY NEW MATCH</button>
+                    <button onClick={onExit} className="w-full bg-white/5 py-4 rounded-[2rem] font-heading text-lg text-gray-500">EXIT TO LOBBY</button>
                 </div>
              </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* CHAT OVERLAY DRAWERS */}
+      {/* 📟 MATCH TICKER */}
+      {gameState === 'PLAYING' && (
+          <div className="px-6 py-3 bg-black/40 border-t border-white/5 flex items-center gap-4 overflow-x-auto no-scrollbar">
+              <span className="text-[9px] font-black uppercase text-gray-600 tracking-widest flex-shrink-0">TICKER //</span>
+              <div className="flex gap-2">
+                  {room?.history?.slice(-10).reverse().map((h, i) => (
+                      <div key={i} className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-heading italic text-sm ${h.batMove === h.bowlMove ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                          {h.batMove === h.bowlMove ? 'W' : h.batMove}
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* 💭 CHAT OVERLAY */}
       <AnimatePresence>
           {chatOpen && (
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[100] bg-[var(--background)]/95 backdrop-blur-xl p-8 flex flex-col">
+              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }} className="fixed inset-0 z-[100] bg-[var(--background)] p-8 flex flex-col">
                   <div className="flex justify-between items-center mb-8">
-                      <div className="flex items-center gap-3">
-                        <MessageSquare className="text-blue-500" size={24} />
-                        <h3 className="text-2xl font-heading italic gold-text tracking-widest uppercase font-heading">LIVE CHAT</h3>
+                      <div className="flex items-center gap-4">
+                        <MessageSquare className="text-yellow-500" size={24} />
+                        <h3 className="text-2xl font-heading italic gold-text tracking-widest uppercase">MATCH SHOUTS</h3>
                       </div>
-                      <button onClick={() => setChatOpen(false)} className="p-3 bg-white/5 rounded-full hover:bg-white/10 transition-all"><X size={24} /></button>
+                      <button onClick={() => setChatOpen(false)} className="p-3 bg-white/5 rounded-full"><X size={24} /></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar mb-6 pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar mb-6">
                       {messages.map((m, i) => (
                           <div key={i} className={`flex flex-col ${m.senderId === (isDemo ? 'me' : socket?.id) ? 'items-end' : 'items-start'}`}>
-                              <span className="text-[10px] font-black text-gray-600 mb-2 uppercase tracking-widest ml-1">{m.username}</span>
-                              <div className={`p-5 rounded-[2rem] max-w-[85%] font-bold text-sm shadow-xl ${m.senderId === (isDemo ? 'me' : socket?.id) ? 'bg-[var(--secondary)] text-white rounded-tr-none' : 'bg-white/5 rounded-tl-none text-gray-200 border border-white/5'}`}>
+                              <span className="text-[10px] font-black text-gray-700 mb-2 uppercase tracking-widest">{m.username}</span>
+                              <div className={`px-6 py-4 rounded-[2rem] max-w-[85%] font-bold text-sm leading-relaxed ${m.senderId === (isDemo ? 'me' : socket?.id) ? 'bg-yellow-500 text-black rounded-tr-none' : 'bg-[#1A1F26] rounded-tl-none border border-white/5'}`}>
                                   {m.message}
                               </div>
                           </div>
                       ))}
                   </div>
-                  <div className="flex gap-3 items-center">
-                      <input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} className="flex-1 bg-white/5 p-5 rounded-[2rem] outline-none border border-white/5 text-lg font-bold" placeholder="Shout your move..." />
-                      <button onClick={sendChat} className="p-5 bg-[var(--secondary)] text-white rounded-full shadow-2xl active:scale-95 transition-all"><Send size={24} /></button>
+                  <div className="flex gap-3">
+                      <input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} className="flex-1 bg-white/5 p-5 rounded-[2rem] outline-none border border-white/5 font-bold" placeholder="Shout your move..." />
+                      <button onClick={sendChat} className="p-5 bg-yellow-500 text-black rounded-full shadow-2xl active:scale-95 transition-all"><Send size={24} /></button>
                   </div>
               </motion.div>
           )}
