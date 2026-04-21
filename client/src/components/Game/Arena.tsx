@@ -8,6 +8,8 @@ import CountUp from '@/components/UI/CountUp';
 import confetti from 'canvas-confetti';
 import { Howl } from 'howler';
 
+import AntiGravityBall from './AntiGravityBall';
+
 const BUTTONS = [1, 2, 3, 4, 5, 6];
 
 export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
@@ -23,6 +25,7 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
   const [chatMsg, setChatMsg] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [tossChoice, setTossChoice] = useState<string | null>(null);
+  const [antiGravity, setAntiGravity] = useState(true);
 
   const sounds = {
     bat: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a1766a.mp3'], volume: 0.5 }),
@@ -208,8 +211,11 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
             </div>
         </div>
         
-        <div className="ml-auto flex items-center gap-2">
-            <div className="live-indicator"><div className="live-dot" /> LIVE</div>
+        <div className="ml-auto flex items-center gap-3">
+            <button onClick={() => setAntiGravity(!antiGravity)} className={`p-3 rounded-xl transition-all border flex items-center gap-2 ${antiGravity ? 'bg-yellow-500/10 border-yellow-500 text-yellow-500' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+                <div className={`w-2 h-2 rounded-full ${antiGravity ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`} />
+                <span className="text-[8px] font-sync uppercase tracking-widest">{antiGravity ? 'Anti-G ON' : 'Gravity Normal'}</span>
+            </button>
             <button onClick={() => setChatOpen(true)} className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative">
                 <MessageSquare size={16} />
                 {messages.length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-500 rounded-full border-2 border-surface shadow-lg" />}
@@ -220,16 +226,39 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
       {/* 🏟️ MAIN FIELD AREA */}
       <div className="flex-1 p-6 flex flex-col relative overflow-hidden z-20">
         <div className="pitch-bg" />
+        
+        {/* Galaxy Particles */}
+        <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
+            {[...Array(20)].map((_, i) => (
+                <motion.div 
+                    key={i}
+                    animate={{ 
+                        y: [-10, 10, -10], 
+                        opacity: [0.2, 0.5, 0.2],
+                        scale: [1, 1.2, 1]
+                    }}
+                    transition={{ duration: 4 + i, repeat: Infinity }}
+                    style={{ 
+                        position: 'absolute', 
+                        top: `${Math.random() * 100}%`, 
+                        left: `${Math.random() * 100}%`,
+                        width: '2px', 
+                        height: '2px', 
+                        background: 'white', 
+                        borderRadius: '50%',
+                        boxShadow: '0 0 10px white'
+                    }}
+                />
+            ))}
+        </div>
 
         <AnimatePresence mode="wait">
           {gameState === 'LOBBY' && (
-             <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-10">
+             <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-12">
                 <div className="relative">
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="w-56 h-56 rounded-full border-2 border-dashed border-yellow-500/10" />
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="w-64 h-64 rounded-full border-4 border-dashed border-yellow-500/5" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-32 h-32 rounded-full glass-card flex items-center justify-center border-2 border-yellow-500/20 shadow-3xl">
-                            <Users size={56} className="text-yellow-500/20 animate-pulse" />
-                        </div>
+                        <AntiGravityBall isActive={false} isOut={false} move={null} />
                     </div>
                 </div>
                 <div className="text-center space-y-6">
@@ -391,29 +420,31 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
                 )}
 
                 {/* 🕹️ CENTER ACTION ZONE */}
-                <div className="flex-1 glass-card rounded-[4rem] relative flex flex-col items-center justify-center p-8 border-b-8 border-black">
-                    <AnimatePresence mode="wait">
-                        {myMove ? (
-                            <motion.div key="move" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center">
-                                <p className="text-[10px] font-sync text-gray-600 mb-6 tracking-[0.4em] uppercase">DECISION LOCKED</p>
-                                <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="text-[10rem] font-heading italic gold-text leading-none drop-shadow-2xl">
-                                    {myMove}
-                                </motion.div>
-                            </motion.div>
-                        ) : (
-                            <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                                <div className="p-8 rounded-full border-2 border-dashed border-white/5 animate-spin-slow mb-6 inline-block">
-                                    <Clock size={40} className="text-gray-800" />
-                                </div>
-                                <h3 className="text-4xl font-heading italic text-gray-700 tracking-[0.2em] leading-none mb-4">AWAITING PLAY</h3>
-                                <div className="inline-flex items-center gap-3 px-6 py-3 glass-inset rounded-2xl border border-white/5">
-                                    <span className="text-3xl font-heading italic text-yellow-500">{timer}</span>
-                                    <div className="w-px h-6 bg-white/10" />
-                                    <span className="text-[10px] font-sync text-gray-600">SEC REMAINING</span>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                <div className="flex-1 glass-card rounded-[4rem] relative flex flex-col items-center justify-center p-8 border-b-8 border-black group">
+                    <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent" />
+                    
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                        <AntiGravityBall 
+                            isActive={!!myMove && !lastResult} 
+                            isOut={lastResult?.isOut || lastResult?.type === 'OUT'} 
+                            move={myMove || lastResult?.batMove} 
+                        />
+                        
+                        <div className="mt-8 text-center">
+                            <AnimatePresence mode="wait">
+                                {myMove ? (
+                                    <motion.p key="locked" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] font-sync text-yellow-500 tracking-[0.4em] uppercase">THRUSTERS LOCKED</motion.p>
+                                ) : (
+                                    <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-4 px-6 py-2 glass-inset rounded-2xl border border-white/5">
+                                        <Clock size={16} className="text-gray-600" />
+                                        <span className="text-2xl font-heading italic text-yellow-500">{timer}s</span>
+                                        <div className="w-px h-4 bg-white/10" />
+                                        <span className="text-[8px] font-sync text-gray-500 uppercase">SYS READY</span>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
 
                     {/* POP RESULT OVERLAY */}
                     <AnimatePresence>

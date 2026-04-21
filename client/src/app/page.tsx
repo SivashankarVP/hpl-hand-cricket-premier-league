@@ -86,8 +86,8 @@ export default function Home() {
                 HPL
             </motion.h1>
             <div className="flex items-center gap-2">
-                <div className="live-indicator"><div className="live-dot" /> LIVE</div>
-                <p className="text-[8px] font-sync text-gray-500 uppercase">Pro League v2.0</p>
+                <div className="live-indicator"><div className="live-dot" /> ANTI-G LIVE</div>
+                <p className="text-[8px] font-sync text-gray-500 uppercase">PRO LEAGUE v2.5 // GALAXY EDITION</p>
             </div>
          </div>
          <div className="flex gap-3">
