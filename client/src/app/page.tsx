@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Play, Info, Hash, ChevronRight, Moon, Sun, User as UserIcon, LogOut, Medal, Zap, ShieldCheck, Gamepad2, Settings2 } from 'lucide-react';
+import { Trophy, Play, Info, Hash, ChevronRight, Moon, Sun, User as UserIcon, LogOut, Medal, Zap, ShieldCheck, Gamepad2, Settings2, Activity } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSocket } from '@/context/SocketContext';
 import { useStore } from '@/store/useStore';
