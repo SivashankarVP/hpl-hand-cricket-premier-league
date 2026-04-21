@@ -38,8 +38,26 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
     socket.on('tossResult', (res) => { setLastResult({ type: 'TOSS', ...res }); setGameState('ROLE_SELECT'); });
     socket.on('gameStarted', (r) => { setRoom(r); setGameState('PLAYING'); setLastResult(null); });
     socket.on('updateScore', ({ room, lastResult }) => { setRoom(room); setLastResult(lastResult); setMyMove(null); sounds.bat.play(); setTimer(10); });
-    socket.on('playerOut', ({ room }) => { setRoom(room); setLastResult({ type: 'OUT' }); setMyMove(null); sounds.wicket.play(); setTimer(10); });
-    socket.on('matchResult', (r) => { setRoom(r); setGameState('FINISHED'); if (r.winner === socket.id) { confetti({ particleCount: 200, spread: 90 }); sounds.win.play(); } });
+    socket.on('playerOut', ({ room, lastResult }) => { 
+        setRoom(room); 
+        if (lastResult) setLastResult({ type: 'OUT', ...lastResult });
+        else setLastResult({ type: 'OUT' });
+        setMyMove(null); 
+        sounds.wicket.play(); 
+        setTimer(10); 
+    });
+    socket.on('matchResult', ({ room, lastResult }) => { 
+        setRoom(room); 
+        if (lastResult) setLastResult(lastResult);
+        setMyMove(null);
+        setTimeout(() => {
+            setGameState('FINISHED'); 
+            if (room.winner === (isDemo ? 'me' : socket?.id)) { 
+                confetti({ particleCount: 200, spread: 90 }); 
+                sounds.win.play(); 
+            }
+        }, 3000); // 3 second delay to see the final ball
+    });
     socket.on('messageReceived', (msg) => setMessages(prev => [...prev, msg]));
 
     return () => {

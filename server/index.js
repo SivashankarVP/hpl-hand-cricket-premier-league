@@ -112,6 +112,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('syncUser', async ({ username }) => {
+     try {
+        let user = await User.findOne({ username });
+        if (!user) {
+            user = await User.create({ username });
+        }
+        socket.emit('userSynced', user);
+     } catch (err) {
+        socket.emit('error', 'User sync failed');
+     }
+  });
+
   // --- ODD/EVEN TOSS LOGIC ---
   socket.on('tossChoice', async ({ roomId, choice }) => {
     const room = await Room.findOne({ roomId });
@@ -307,7 +319,13 @@ io.on('connection', (socket) => {
         room.gameState = 'FINISHED';
         room.winner = batsman.id;
         await room.save();
-        io.to(room.roomId).emit('matchResult', room);
+        io.to(room.roomId).emit('matchResult', { room, lastResult: { batMove, bowlMove } });
+        
+        // Update DB Stats
+        try {
+            await User.findOneAndUpdate({ username: batsman.name }, { $inc: { 'stats.wins': 1, 'stats.matchesPlayed': 1 }, $set: { lastActive: new Date() } });
+            await User.findOneAndUpdate({ username: bowler.name }, { $inc: { 'stats.losses': 1, 'stats.matchesPlayed': 1 }, $set: { lastActive: new Date() } });
+        } catch (e) {}
     } else if (inningsEnded) {
       if (room.innings === 1) {
         room.innings = 2;
@@ -317,13 +335,19 @@ io.on('connection', (socket) => {
         room.players.forEach(p => p.role = (p.role === 'batsman' ? 'bowler' : 'batsman'));
         room.lastMoves = new Map();
         await room.save();
-        io.to(room.roomId).emit('playerOut', { room, type: 'innings' });
+        io.to(room.roomId).emit('playerOut', { room, type: 'innings', lastResult: { batMove, bowlMove } });
       } else {
         // Runner runs out in 2nd innings
         room.gameState = 'FINISHED';
         room.winner = bowler.id;
         await room.save();
-        io.to(room.roomId).emit('matchResult', room);
+        io.to(room.roomId).emit('matchResult', { room, lastResult: { batMove, bowlMove } });
+
+        // Update DB Stats
+        try {
+            await User.findOneAndUpdate({ username: bowler.name }, { $inc: { 'stats.wins': 1, 'stats.matchesPlayed': 1 }, $set: { lastActive: new Date() } });
+            await User.findOneAndUpdate({ username: batsman.name }, { $inc: { 'stats.losses': 1, 'stats.matchesPlayed': 1 }, $set: { lastActive: new Date() } });
+        } catch (e) {}
       }
     } else {
       room.lastMoves = new Map();
@@ -332,6 +356,11 @@ io.on('connection', (socket) => {
           room, 
           lastResult: { batMove, bowlMove, batsmanName: batsman.name, isOut: batMove === bowlMove } 
       });
+    }
+
+    // 🤖 TRIGGER BOT MOVE IF APPLICABLE
+    if (room.isBotRoom && room.gameState === 'PLAYING') {
+        setTimeout(() => handleBotMove(room, io), 1500); 
     }
   }
 

@@ -28,8 +28,15 @@ export default function Home() {
     if (!socket) return;
     socket.on('roomCreated', (room) => router.push(`/room/${room.roomId}`));
     socket.on('error', (msg) => { setError(msg); setTimeout(() => setError(""), 3000); });
-    return () => { socket.off('roomCreated'); socket.off('error'); };
+    socket.on('userSynced', (dbUser) => setUser(dbUser));
+    return () => { socket.off('roomCreated'); socket.off('error'); socket.off('userSynced'); };
   }, [socket, searchParams]);
+
+  useEffect(() => {
+    if (socket && user?.username) {
+        socket.emit('syncUser', { username: user.username });
+    }
+  }, [socket, user?.username]);
 
   const handleStartGame = (mode: 'create' | 'join' | 'bot') => {
     let finalUsername = usernameInput.trim();
