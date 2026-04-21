@@ -15,7 +15,7 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
   const { user } = useStore();
   
   const [room, setRoom] = useState(initialRoom);
-  const [gameState, setGameState] = useState(initialRoom?.gameState || (isDemo ? 'PLAYING' : 'LOBBY'));
+  const [gameState, setGameState] = useState(initialRoom?.gameState || (isDemo ? 'TOSS' : 'LOBBY'));
   const [myMove, setMyMove] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<any>(null);
   const [timer, setTimer] = useState(10);
@@ -71,18 +71,91 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
     }
   }, [gameState, myMove]);
 
+  const resolveDemoMove = (playerVal: number) => {
+      const botVal = Math.floor(Math.random() * 6) + 1;
+      const isOut = playerVal === botVal;
+      
+      const newHistory = [...(room?.history || []), { 
+          batsman: me.role === 'batsman' ? 'ME' : 'BOT',
+          bowler: me.role === 'bowler' ? 'ME' : 'BOT',
+          batMove: me.role === 'batsman' ? playerVal : botVal,
+          bowlMove: me.role === 'bowler' ? playerVal : botVal
+      }];
+
+      let updatedMe = { ...me };
+      let updatedOpp = { ...opp };
+      let nextGameState = gameState;
+      let nextInnings = room?.innings || 1;
+      let nextTarget = room?.target || null;
+
+      if (isOut) {
+          sounds.wicket.play();
+          setLastResult({ type: 'OUT', batMove: me.role === 'batsman' ? playerVal : botVal, bowlMove: me.role === 'bowler' ? playerVal : botVal });
+          
+          if (nextInnings === 1) {
+              nextInnings = 2;
+              nextTarget = (me.role === 'batsman' ? updatedMe.score : updatedOpp.score) + 1;
+              updatedMe.role = updatedMe.role === 'batsman' ? 'bowler' : 'batsman';
+              updatedOpp.role = updatedOpp.role === 'batsman' ? 'bowler' : 'batsman';
+          } else {
+              nextGameState = 'FINISHED';
+          }
+      } else {
+          sounds.bat.play();
+          if (me.role === 'batsman') updatedMe.score += playerVal;
+          else updatedOpp.score += botVal;
+          
+          setLastResult({ batMove: me.role === 'batsman' ? playerVal : botVal, bowlMove: me.role === 'bowler' ? playerVal : botVal });
+
+          if (nextInnings === 2 && ((me.role === 'batsman' && updatedMe.score >= nextTarget) || (opp.role === 'batsman' && updatedOpp.score >= nextTarget))) {
+              nextGameState = 'FINISHED';
+          }
+      }
+
+      setRoom({
+          ...room,
+          players: [updatedMe, updatedOpp],
+          history: newHistory,
+          innings: nextInnings,
+          target: nextTarget,
+          winner: nextGameState === 'FINISHED' ? (updatedMe.score >= (nextTarget || 0) && me.role === 'batsman' ? 'me' : 'opp') : null
+      });
+      setGameState(nextGameState);
+      setMyMove(null);
+  };
+
   const handleMove = (val: number) => {
     if (myMove !== null) return;
+    if (isDemo) {
+        setMyMove(val);
+        setTimeout(() => resolveDemoMove(val), 1000);
+        return;
+    }
     setMyMove(val);
     if (gameState === 'TOSS') socket.emit('sendTossNumber', { roomId: room.roomId, number: val });
     else if (gameState === 'PLAYING') socket.emit('sendNumber', { roomId: room.roomId, number: val });
   };
 
   const handleTossChoice = (choice: string) => {
+      if (isDemo) {
+          setTossChoice(choice);
+          return;
+      }
       socket.emit('tossChoice', { roomId: room.roomId, choice });
   };
 
   const handleRoleSelect = (role: string) => {
+      if (isDemo) {
+          setRoom({
+              ...room,
+              players: [
+                  { id: 'me', name: username, score: 0, role: role === 'batting' ? 'batsman' : 'bowler' },
+                  { id: 'bot', name: 'AI BOT', score: 0, role: role === 'batting' ? 'bowler' : 'batsman' }
+              ]
+          });
+          setGameState('PLAYING');
+          return;
+      }
       socket.emit('selectRole', { roomId: room.roomId, role });
   };
 

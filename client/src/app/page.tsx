@@ -246,13 +246,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 🧭 NAVIGATION FOOTER */}
       <div className="p-8 pt-0 grid grid-cols-2 gap-4 z-20">
-         <button onClick={() => setShowHowTo(true)} className="py-4 glass-card rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white hover:border-yellow-500/50 transition-all border-b-4 border-b-black active:translate-y-1">
+         <button onClick={() => setShowHowTo(true)} className="py-4 glass-card rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:border-yellow-500/50 transition-all border-b-4 border-b-black active:translate-y-1">
             <Info size={14} /> Guide
          </button>
-         <button onClick={() => router.push('/leaderboard')} className="py-4 glass-card rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white hover:border-cyan-500/50 transition-all border-b-4 border-b-black active:translate-y-1">
-            <Trophy size={14} /> Ranking
+         <button onClick={() => router.push('/demo')} className="py-4 glass-card rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:border-emerald-500/50 transition-all border-b-4 border-b-black active:translate-y-1">
+            <Play size={14} /> Practice AI
          </button>
       </div>
 
