@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, AlertTriangle, Info, Play, User, Users } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Info, Play, User, Users, Zap, ShieldCheck } from 'lucide-react';
 
 export default function HowToPlay({ isOpen, onClose }) {
   if (!isOpen) return null;
@@ -18,9 +18,9 @@ export default function HowToPlay({ isOpen, onClose }) {
       icon: <AlertTriangle className="text-yellow-400" size={18} />
     },
     {
-      title: "Winning the Game",
+      title: "Match Victory",
       desc: "After the first batsman is out, roles swap. The second batsman must surpass the first one's score to win.",
-      icon: <Info className="text-blue-400" size={18} />
+      icon: <Zap className="text-blue-400" size={18} />
     }
   ];
 
@@ -30,73 +30,85 @@ export default function HowToPlay({ isOpen, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md"
       >
         <motion.div 
-          initial={{ scale: 0.9, y: 20 }}
+          initial={{ scale: 0.95, y: 30 }}
           animate={{ scale: 1, y: 0 }}
-          exit={{ scale: 0.9, y: 20 }}
-          className="bg-[#121212] border border-white/10 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl"
+          exit={{ scale: 0.95, y: 30 }}
+          className="glass-card w-full max-w-lg rounded-[3rem] overflow-hidden border-b-8 border-black shadow-4xl relative"
         >
-          <div className="p-6 border-b border-white/5 flex items-center justify-between">
-            <h2 className="text-2xl font-black italic gold-text tracking-tighter">HPL RULES</h2>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-gray-400">
+          <div className="scanline opacity-10" />
+          
+          <div className="p-8 border-b border-white/5 flex items-center justify-between relative z-10">
+            <div className="flex flex-col">
+                <h2 className="text-3xl font-heading italic gold-text leading-none mb-1">PRO GUIDE</h2>
+                <p className="text-[8px] font-sync text-gray-500 uppercase">HPL Official Handbook</p>
+            </div>
+            <button onClick={onClose} className="p-3 glass-card rounded-2xl hover:bg-white/10 transition-all text-gray-400">
               <X size={24} />
             </button>
           </div>
 
-          <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-3">
-                   <div className="flex gap-2 text-blue-400 items-center font-bold text-xs uppercase tracking-widest">
-                      <User size={14} />
-                      Batting
+          <div className="p-8 space-y-10 max-h-[70vh] overflow-y-auto no-scrollbar relative z-10">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-6 glass-inset rounded-3xl space-y-4 relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:scale-110 transition-transform"><Zap size={40} /></div>
+                   <div className="flex gap-2 text-yellow-500 items-center font-sync text-[9px]">
+                      <Zap size={14} /> BATTING
                    </div>
-                   <p className="text-sm text-gray-400">Score as many runs as possible by choosing numbers. If the bowler picks the same number, you are out!</p>
+                   <p className="text-xs text-gray-400 font-medium leading-relaxed italic">Score maximum runs and reach the target. Avoid matching numbers with the bowler!</p>
                 </div>
-                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-3">
-                   <div className="flex gap-2 text-red-400 items-center font-bold text-xs uppercase tracking-widest">
-                      <Users size={14} />
-                      Bowling
+                <div className="p-6 glass-inset rounded-3xl space-y-4 relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:scale-110 transition-transform"><ShieldCheck size={40} /></div>
+                   <div className="flex gap-2 text-cyan-500 items-center font-sync text-[9px]">
+                      <ShieldCheck size={14} /> BOWLING
                    </div>
-                   <p className="text-sm text-gray-400">Stop the batsman by guessing their number. If you choose the same number as the batsman, they get out.</p>
+                   <p className="text-xs text-gray-400 font-medium leading-relaxed italic">Stop the scoring by predicting the batsman's number. Match the digits to get a WICKET.</p>
                 </div>
              </div>
 
-             <div className="space-y-6">
-                <h3 className="font-black italic text-gray-300 tracking-tight flex items-center gap-2">
-                   STEP BY STEP GUIDE
-                </h3>
+             <div className="space-y-8">
+                <div className="flex items-center gap-3">
+                    <div className="h-0.5 flex-1 bg-gradient-to-r from-transparent to-white/5" />
+                    <h3 className="font-sync text-[9px] text-gray-500">PLAYBOOK STEPS</h3>
+                    <div className="h-0.5 flex-1 bg-gradient-to-l from-transparent to-white/5" />
+                </div>
                 
-                {rules.map((rule, idx) => (
-                  <div key={idx} className="flex gap-4 items-start">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-500 font-bold border border-blue-500/20">
-                      {idx + 1}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 font-black italic text-gray-200 tracking-tight uppercase text-sm">
-                        {rule.icon}
-                        {rule.title}
-                      </div>
-                      <p className="text-sm text-gray-400 font-medium leading-relaxed">
-                        {rule.desc}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                <div className="space-y-8">
+                    {rules.map((rule, idx) => (
+                    <motion.div initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: idx * 0.1 }} key={idx} className="flex gap-6 items-start">
+                        <div className="w-10 h-10 rounded-2xl glass-card flex items-center justify-center flex-shrink-0 text-yellow-500 font-heading text-xl border-2 border-yellow-500/20 shadow-lg">
+                        {idx + 1}
+                        </div>
+                        <div className="space-y-2">
+                        <div className="flex items-center gap-3 font-heading italic text-gray-200 tracking-wide uppercase text-lg">
+                            {rule.icon}
+                            {rule.title}
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium leading-relaxed italic">
+                            {rule.desc}
+                        </p>
+                        </div>
+                    </motion.div>
+                    ))}
+                </div>
              </div>
 
-             <div className="bg-yellow-500/5 p-4 rounded-2xl border border-yellow-500/10">
-                <p className="text-xs text-yellow-500 font-bold italic tracking-wide">PRO TIP: Watch your opponent's timing and patterns to predict their moves!</p>
+             <div className="bg-yellow-500/5 p-6 rounded-3xl border border-yellow-500/10 flex items-start gap-4">
+                <Info size={24} className="text-yellow-500 flex-shrink-0" />
+                <p className="text-[11px] text-yellow-500/80 font-bold italic leading-relaxed tracking-tight">
+                    PRO STRATEGY: Observe frequency patterns in your opponent's play. Most players have unintentional habits that the AI and Pro players can exploit!
+                </p>
              </div>
           </div>
 
-          <div className="p-4 bg-white/5 border-t border-white/5 text-center">
+          <div className="p-6 glass-inset bg-white/5 border-t border-white/5 text-center relative z-10">
              <button 
                onClick={onClose}
-               className="px-8 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-black transition-all"
+               className="w-full btn-action btn-primary py-5 rounded-[2rem] text-xl"
              >
-               GOT IT!
+               ENTER THE FIELD
              </button>
           </div>
         </motion.div>
