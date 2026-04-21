@@ -28,7 +28,8 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
   const sounds = {
     bat: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a1766a.mp3'], volume: 0.5 }),
     wicket: new Howl({ src: ['https://cdn.pixabay.com/audio/2021/08/04/audio_34e107d39a.mp3'], volume: 0.6 }),
-    win: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/01/26/audio_2267677b10.mp3'], volume: 0.4 })
+    win: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/01/26/audio_2267677b10.mp3'], volume: 0.4 }),
+    start: new Howl({ src: ['https://cdn.pixabay.com/audio/2021/08/04/audio_06253c5cd1.mp3'], volume: 0.5 })
   };
 
   useEffect(() => {
@@ -53,6 +54,16 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
         socket.off('messageReceived');
     };
   }, [socket, isDemo]);
+
+  useEffect(() => {
+    if (room?.gameState && room.gameState !== gameState) {
+        if (gameState === 'LOBBY' && room.gameState === 'TOSS') {
+             sounds.start.play();
+             confetti({ particleCount: 50, spread: 60, colors: ['#fbbf24', '#ffffff'] });
+        }
+        setGameState(room.gameState);
+    }
+  }, [room?.gameState]);
 
   useEffect(() => {
     if (gameState === 'PLAYING' && myMove === null) {
@@ -80,6 +91,12 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
       if (!chatMsg.trim()) return;
       socket.emit('sendMessage', { roomId: room.roomId, message: chatMsg, username });
       setChatMsg("");
+  };
+
+  const copyRoomLink = () => {
+      const link = `${window.location.origin}/room/${room?.roomId}`;
+      navigator.clipboard.writeText(link);
+      // Optional: Add a toast or temporary visual feedback
   };
 
   const me = room?.players.find(p => p.id === (isDemo ? 'me' : socket?.id)) || { name: username, score: 0, role: 'batsman' };
@@ -130,11 +147,85 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
                 </div>
                 <div className="text-center space-y-4">
                     <h2 className="text-3xl font-heading italic gold-text">MATCHMAKING...</h2>
-                    <div className="px-6 py-4 rounded-[2rem] glass-panel space-y-2">
-                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-[0.3em]">Share Room ID</p>
-                        <p className="text-3xl font-heading tracking-[0.3em]">{room?.roomId}</p>
+                    <div className="px-6 py-4 rounded-[2rem] glass-panel space-y-4 border border-white/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div>
+                            <p className="text-[8px] font-black text-gray-500 uppercase tracking-[0.3em]">Match ID</p>
+                            <p className="text-4xl font-heading tracking-[0.3em] gold-text">{room?.roomId}</p>
+                        </div>
+                        <button 
+                            onClick={copyRoomLink}
+                            className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                        >
+                            <Share2 size={14} className="text-yellow-500" />
+                            Copy Invite Link
+                        </button>
                     </div>
+                    <p className="text-[9px] font-bold text-gray-600 animate-pulse">Waiting for challenger to join...</p>
                 </div>
+             </motion.div>
+          )}
+
+          {gameState === 'TOSS' && (
+             <motion.div key="toss" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center space-y-8">
+                <div className="w-40 h-40 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center shadow-4xl animate-bounce">
+                    <Sparkles size={60} className="text-black" />
+                </div>
+                <div className="text-center space-y-4">
+                    <h2 className="text-4xl font-heading italic gold-text">THE TOSS</h2>
+                    {!tossChoice ? (
+                        <div className="space-y-4">
+                            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Pick your call</p>
+                            <div className="flex gap-4">
+                                <button onClick={() => handleTossChoice('odd')} className="px-10 py-5 bg-white/5 border border-white/10 rounded-3xl font-heading text-2xl hover:bg-yellow-500 hover:text-black transition-all">ODD</button>
+                                <button onClick={() => handleTossChoice('even')} className="px-10 py-5 bg-white/5 border border-white/10 rounded-3xl font-heading text-2xl hover:bg-yellow-500 hover:text-black transition-all">EVEN</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <p className="text-emerald-500 font-black uppercase tracking-[0.3em] text-xs">Called {tossChoice.toUpperCase()}</p>
+                            <div className="grid grid-cols-3 gap-3">
+                                {[1,2,3,4,5,6].map(n => (
+                                    <button key={n} onClick={() => handleMove(n)} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 font-heading text-xl hover:bg-white/10 transition-all">{n}</button>
+                                ))}
+                            </div>
+                            <p className="text-gray-600 text-[10px] font-bold italic">Waiting for opponent's number...</p>
+                        </div>
+                    )}
+                </div>
+             </motion.div>
+          )}
+
+          {gameState === 'ROLE_SELECT' && (
+             <motion.div key="role" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 flex flex-col items-center justify-center space-y-10">
+                <div className="text-center space-y-2">
+                    <h2 className="text-5xl font-heading italic gold-text leading-none">
+                        {lastResult?.winnerId === (isDemo ? 'me' : socket?.id) ? "YOU WON THE TOSS!" : `${lastResult?.winnerName} WON THE TOSS`}
+                    </h2>
+                    <p className="text-gray-500 font-bold uppercase tracking-[0.4em] text-[10px]">Match Decision Phase</p>
+                </div>
+
+                {lastResult?.winnerId === (isDemo ? 'me' : socket?.id) ? (
+                    <div className="grid grid-cols-2 gap-6 w-full max-w-sm">
+                        <button onClick={() => handleRoleSelect('batting')} className="flex flex-col items-center gap-4 p-8 glass-panel rounded-[2.5rem] hover:border-yellow-500 transition-all group">
+                            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-all">
+                                <Zap size={32} />
+                            </div>
+                            <span className="font-heading italic text-xl">BAT FIRST</span>
+                        </button>
+                        <button onClick={() => handleRoleSelect('bowling')} className="flex flex-col items-center gap-4 p-8 glass-panel rounded-[2.5rem] hover:border-blue-500 transition-all group">
+                            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-black transition-all">
+                                <ShieldCheck size={32} />
+                            </div>
+                            <span className="font-heading italic text-xl">BOWL FIRST</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="p-10 glass-panel rounded-[3rem] text-center space-y-4">
+                        <div className="w-16 h-16 rounded-full border-4 border-t-yellow-500 border-white/5 animate-spin mx-auto" />
+                        <p className="text-xl font-heading italic text-gray-400">OPPONENT IS DECIDING...</p>
+                    </div>
+                )}
              </motion.div>
           )}
 
@@ -148,6 +239,9 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
                             <span className="text-4xl font-heading italic leading-none"><CountUp value={me.score} /></span>
                             <span className="text-[10px] font-bold text-gray-600">RUNS</span>
                         </div>
+                        {room.maxWickets > 1 && (
+                            <p className="text-[9px] font-black text-gray-400 mt-1">WKT: {me.role === 'batsman' ? room.currentWickets : '0'} / {room.maxWickets}</p>
+                        )}
                     </div>
                     <div className="glass-panel p-4 rounded-3xl space-y-1 text-right border-r-4 border-blue-500">
                         <p className="text-[8px] font-black uppercase text-blue-500 tracking-widest">{opp.role}</p>
@@ -155,8 +249,26 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
                             <span className="text-4xl font-heading italic leading-none"><CountUp value={opp.score} /></span>
                             <span className="text-[10px] font-bold text-gray-600">RUNS</span>
                         </div>
+                        {room.maxWickets > 1 && (
+                            <p className="text-[9px] font-black text-gray-400 mt-1">WKT: {opp.role === 'batsman' ? room.currentWickets : '0'} / {room.maxWickets}</p>
+                        )}
                     </div>
                 </div>
+                 
+                 {/* 📈 MATCH INFO BAR */}
+                <div className="flex justify-between items-center px-6 py-2 mb-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">{room.matchMode?.replace('_', ' ')}</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-800" />
+                        <span className="text-[10px] font-bold text-gray-400">INNINGS {room.innings}</span>
+                    </div>
+                    {room.matchMode === 'OVERS' && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase">OVERS</span>
+                            <span className="text-sm font-heading italic">{Math.floor(room.currentBalls / 6)}.{room.currentBalls % 6} / {room.maxOvers}</span>
+                        </div>
+                    )}
+                 </div>
 
                 {room?.target && (
                     <motion.div initial={{ y: -10 }} animate={{ y: 0 }} className="mb-6 bg-gradient-to-r from-blue-600/20 to-transparent border border-white/5 p-4 rounded-2xl flex justify-between items-center px-6">
