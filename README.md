@@ -6,15 +6,12 @@ A high-performance, real-time multiplayer Hand Cricket platform. Built for compe
 
 ## 🎯 Key Features
 
-- **Live Multiplayer**: Powered by Socket.io for sub-100ms move synchronization.
-- **Persistent Stats**: Integration with MongoDB to track Wins, Losses, and highest scores.
-- **Dynamic Routing**: Join matches via shareable links (`/room/ROOM_ID`).
-- **Toss & Strategy**: Balanced 2-innings system with interactive toss and role selection.
-- **Premium UI**: 
-  - Framer Motion for cinematic animations.
-  - Tailwind CSS with custom thematic design.
-  - Dark mode by default with light mode support.
-- **Smart Demo**: Practice against "Bot Bravo" in an offline-capable demo mode.
+- **Pro Desktop Dashboard**: A state-of-the-art 3-column layout optimized for wide viewports, featuring side-panel persistent communications and data streams.
+- **Broadcast-Quality HUD**: Integrated scoreboard, data logs, and real-time connectivity stats for a professional sports experience.
+- **Hybrid Controls**: Support for both precision mouse clicks and keyboard shortcuts (Keys 1-6) for elite-level gameplay.
+- **Anti-Gravity Physics**: Cinematic ball animations and curved trajectories powered by Framer Motion.
+- **Live Multiplayer**: High-performance synchronization via Socket.io with dedicated room management.
+- **Smart Demo**: Integrated AI simulator for offline strategy testing and practice.
 
 ## 🛠️ Tech Stack
 
