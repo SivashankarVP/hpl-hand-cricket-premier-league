@@ -44,16 +44,18 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
     socket.on('gameStarted', (r) => { setRoom(r); setGameState('PLAYING'); setLastResult(null); });
     socket.on('updateScore', ({ room, lastResult }) => { 
         handleBallAnimation(lastResult);
-        setTimeout(() => { setRoom(room); setLastResult(lastResult); setMyMove(null); setTimer(10); }, 1500); 
+        const delay = gravityMode ? 1500 : 600;
+        setTimeout(() => { setRoom(room); setLastResult(lastResult); setMyMove(null); setTimer(10); }, delay); 
     });
     socket.on('playerOut', ({ room, lastResult }) => { 
         handleBallAnimation({ ...lastResult, isOut: true });
+        const delay = gravityMode ? 1500 : 600;
         setTimeout(() => {
             setRoom(room); 
             setLastResult({ type: 'OUT', ...lastResult });
             setMyMove(null); 
             setTimer(10);
-        }, 1500);
+        }, delay);
     });
     socket.on('matchResult', ({ room, lastResult }) => { 
         setRoom(room); 
