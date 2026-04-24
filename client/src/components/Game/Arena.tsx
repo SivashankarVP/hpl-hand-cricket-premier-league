@@ -26,6 +26,7 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
   const [tossChoice, setTossChoice] = useState<string | null>(null);
   const [ballState, setBallState] = useState<'idle' | 'moving' | 'hit' | 'out'>('idle');
   const [gravityMode, setGravityMode] = useState(true);
+  const [activeReactions, setActiveReactions] = useState<{id: number, emoji: string, senderId: string}[]>([]);
 
   const sounds = {
     bat: new Howl({ src: ['https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a1766a.mp3'], volume: 0.5 }),
@@ -67,6 +68,13 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
         }, 3000);
     });
     socket.on('messageReceived', (msg) => setMessages(prev => [...prev, msg]));
+    socket.on('reactionReceived', ({ emoji, senderId }) => {
+        const id = Date.now() + Math.random();
+        setActiveReactions(prev => [...prev, { id, emoji, senderId }]);
+        setTimeout(() => {
+            setActiveReactions(prev => prev.filter(r => r.id !== id));
+        }, 3000);
+    });
     
     const handleKeyDown = (e: KeyboardEvent) => {
         if (chatOpen) return;
@@ -87,6 +95,7 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
         socket.off('playerOut');
         socket.off('matchResult');
         socket.off('messageReceived');
+        socket.off('reactionReceived');
     };
   }, [socket, isDemo]);
 
@@ -104,6 +113,30 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
           setTimeout(() => setBallState('idle'), 1000);
       }, gravityMode ? 1500 : 600);
   };
+  
+  const sendChat = () => {
+    if (!chatMsg.trim() || isDemo) return;
+    socket.emit('sendMessage', { roomId: room.roomId, message: chatMsg, username });
+    setChatMsg("");
+  };
+
+  useEffect(() => {
+    if (gameState !== 'PLAYING' || myMove !== null) return;
+    
+    const interval = setInterval(() => {
+      setTimer(prev => {
+        if (prev <= 1) {
+          // Auto-move if timer hits 0? Or just leave it?
+          // For now just keep it at 1 or stop.
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState, myMove, room?.history?.length]);
 
   const resolveDemoMove = (playerVal: number) => {
       const botVal = Math.floor(Math.random() * 6) + 1;
@@ -181,6 +214,11 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
 
   const me = room?.players.find(p => p.id === (isDemo ? 'me' : socket?.id)) || { name: username, score: 0, role: 'batsman' };
   const opp = room?.players.find(p => p.id !== (isDemo ? 'me' : socket?.id)) || { name: 'OPPONENT', score: 0, role: 'bowler' };
+
+  const sendReaction = (emoji: string) => {
+    if (isDemo) return;
+    socket.emit('sendReaction', { roomId: room.roomId, emoji });
+  };
 
   return (
     <div className="game-container">
@@ -618,18 +656,42 @@ export default function Arena({ room: initialRoom, username, isDemo, onExit }) {
             </div>
 
             <div className="glass-card flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-sync text-emerald-500/80">SYSTEMS_OPTIMAL</span>
+                <div className="flex gap-2">
+                    {['🔥', '👏', '😮', '😂', '💯'].map(emoji => (
+                        <button 
+                            key={emoji} 
+                            onClick={() => { sendReaction(emoji); const id = Date.now(); setActiveReactions(prev => [...prev, {id, emoji, senderId: socket?.id || 'me'}]); setTimeout(() => setActiveReactions(prev => prev.filter(r => r.id !== id)), 3000); }} 
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-lg"
+                        >
+                            {emoji}
+                        </button>
+                    ))}
                 </div>
                 <div className="flex gap-4">
                     <Info size={14} className="text-gray-600 hover:text-cyan-500 cursor-pointer" />
                     <Share2 size={14} onClick={copyRoomLink} className="text-gray-600 hover:text-cyan-500 cursor-pointer" />
                 </div>
             </div>
+            
+            {/* Floating Reactions Overlay */}
+            <div className="fixed inset-0 pointer-events-none z-[1000]">
+                <AnimatePresence>
+                    {activeReactions.map((r) => (
+                        <motion.div
+                            key={r.id}
+                            initial={{ y: '80vh', x: r.senderId === (isDemo ? 'me' : socket?.id) ? '10vw' : '80vw', opacity: 0, scale: 0.5 }}
+                            animate={{ y: '20vh', opacity: 1, scale: 2 }}
+                            exit={{ opacity: 0, scale: 3 }}
+                            transition={{ duration: 2, ease: "easeOut" }}
+                            className="absolute text-4xl"
+                        >
+                            {r.emoji}
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
         </aside>
       </div>
-
     </div>
   );
 }

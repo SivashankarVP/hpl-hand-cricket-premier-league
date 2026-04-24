@@ -77,6 +77,10 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('playerJoined', room);
         console.log(`👤 ${username} joined ${roomId}`);
       }
+    } catch (err) {
+      console.error(err);
+      socket.emit('error', 'Failed to join room');
+    }
   });
   
   socket.on('createBotRoom', async ({ username, difficulty, matchMode, maxOvers, maxWickets }) => {
@@ -202,7 +206,7 @@ io.on('connection', (socket) => {
     await room.save();
 
     if (room.lastMoves.size === 3) {
-      finalizeToss(room);
+      await finalizeToss(room);
     }
   });
 
@@ -360,7 +364,7 @@ io.on('connection', (socket) => {
 
     // 🤖 TRIGGER BOT MOVE IF APPLICABLE
     if (room.isBotRoom && room.gameState === 'PLAYING') {
-        setTimeout(() => handleBotMove(room, io), 1500); 
+        setTimeout(() => handleBotMove(room), 1500); 
     }
   }
 

@@ -131,7 +131,11 @@ export default function Home() {
                 <div className="grid grid-cols-3 gap-3">
                     <div className="hud-panel p-4 rounded-xl text-center">
                         <p className="text-[7px] font-sync text-gray-500 mb-1">WIN_RATE</p>
-                        <p className="text-xl font-cyber text-emerald-400">{((user.stats?.wins / (user.stats?.matchesPlayed || 1)) * 100).toFixed(0)}%</p>
+                        <p className="text-xl font-cyber text-emerald-400">
+                            {user?.stats?.matchesPlayed 
+                                ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) 
+                                : '0'}%
+                        </p>
                     </div>
                     <div className="hud-panel p-4 rounded-xl text-center">
                         <p className="text-[7px] font-sync text-gray-500 mb-1">SCORE_MAX</p>
