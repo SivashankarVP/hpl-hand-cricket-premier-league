@@ -1,7 +1,12 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Play, Info, ChevronRight, Moon, Sun, User as UserIcon, LogOut, Medal, Zap, ShieldCheck, Gamepad2, Settings2, Activity, Cpu, Globe } from 'lucide-react';
+import { 
+  Trophy, Play, Info, ChevronRight, Moon, Sun, 
+  User as UserIcon, LogOut, Medal, Zap, 
+  ShieldCheck, Gamepad2, Settings2, Activity, 
+  Cpu, Globe, Signal, Users, Target, Clock
+} from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSocket } from '@/context/SocketContext';
 import { useStore } from '@/store/useStore';
@@ -32,20 +37,14 @@ export default function Home() {
     return () => { socket.off('roomCreated'); socket.off('error'); socket.off('userSynced'); };
   }, [socket, searchParams]);
 
-  useEffect(() => {
-    if (socket && user?.username) {
-        socket.emit('syncUser', { username: user.username });
-    }
-  }, [socket, user?.username]);
-
   const handleStartGame = (mode: 'create' | 'join' | 'bot') => {
     let finalUsername = usernameInput.trim();
     if (!finalUsername) {
-      finalUsername = `UNIT_${Math.floor(Math.random() * 9000) + 1000}`;
+      finalUsername = `PLAYER_${Math.floor(Math.random() * 9000) + 1000}`;
       setUsernameInput(finalUsername);
     }
     if (!user || user.username !== finalUsername) {
-        setUser({ username: finalUsername, avatar: '🤖' });
+        setUser({ username: finalUsername, avatar: '🏏' });
     }
 
     const payload = { 
@@ -57,7 +56,7 @@ export default function Home() {
 
     if (mode === 'create') socket.emit('createRoom', payload);
     else if (mode === 'join') {
-        if (!roomCode) return setError("INPUT CODE REQUIRED");
+        if (!roomCode) return setError("ROOM CODE REQUIRED");
         router.push(`/room/${roomCode.toUpperCase()}`);
     } else if (mode === 'bot') {
         socket.emit('createBotRoom', { ...payload, difficulty });
@@ -65,204 +64,314 @@ export default function Home() {
   };
 
   return (
-    <div className="game-container">
-      {/* 🌌 Animated Particle Background */}
-      <div className="particle-container">
-          {[...Array(20)].map((_, i) => (
-              <motion.div 
-                key={i}
-                animate={{ 
-                    y: [0, -1000], 
-                    opacity: [0, 1, 0],
-                    x: Math.random() * 400
-                }}
-                transition={{ 
-                    duration: Math.random() * 10 + 5, 
-                    repeat: Infinity, 
-                    delay: Math.random() * 5 
-                }}
-                className="particle"
-                style={{ left: `${Math.random() * 100}%`, top: '110%' }}
-              />
-          ))}
-      </div>
+    <div className="broadcast-layout">
+      {/* 📡 HEADER */}
+      <header className="layout-header">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-accent-primary rounded-lg flex items-center justify-center">
+            <Trophy className="text-black" size={28} />
+          </div>
+          <div>
+            <h1 className="font-display text-4xl leading-none text-gradient">HPL PREMIER</h1>
+            <div className="flex items-center gap-2">
+              <span className="badge-live">LIVE</span>
+              <span className="text-[10px] text-foreground-muted font-bold tracking-widest uppercase">Global Server v2.4</span>
+            </div>
+          </div>
+        </div>
 
-      <div className="scanline" />
-      
-      {/* 🚀 NEON HEADER */}
-      <div className="p-8 pb-4 flex justify-between items-center z-20">
-         <div className="flex flex-col">
-            <motion.h1 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-5xl font-cyber neon-text tracking-tighter leading-none mb-2"
-            >
-                HPL // 2077
-            </motion.h1>
-            <p className="text-[7px] font-sync text-cyan-500 opacity-60">ANTI_GRAVITY MATCH SYSTEM 1.0</p>
-         </div>
-         <div className="flex gap-3">
-            <button onClick={toggleTheme} className="p-3 hud-panel rounded-xl hover:border-cyan-500 transition-all">
-               {theme === 'dark' ? <Sun size={18} className="text-cyan-400" /> : <Moon size={18} />}
+        <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-8 px-8 border-x border-glass-border">
+            <div className="text-center">
+              <p className="text-[10px] text-foreground-muted uppercase font-bold">Active Rooms</p>
+              <p className="font-display text-xl text-accent-secondary">124</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-foreground-muted uppercase font-bold">Online Players</p>
+              <p className="font-display text-xl text-accent-primary">2,841</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={toggleTheme} className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center hover:bg-surface-3 transition-colors">
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             {user && (
-                <button onClick={logout} className="p-3 hud-panel rounded-xl text-pink-500 hover:bg-pink-500/10 transition-all">
-                   <LogOut size={18} />
-                </button>
+              <button onClick={logout} className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center hover:bg-accent-danger/20 text-accent-danger transition-colors">
+                <LogOut size={18} />
+              </button>
             )}
-         </div>
-      </div>
-
-      <div className="flex-1 flex flex-col p-8 overflow-y-auto no-scrollbar space-y-8 z-20">
-        <AnimatePresence mode="wait">
-          {user ? (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-                <div className="hud-panel p-6 rounded-2xl flex items-center gap-6 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="w-16 h-16 rounded-xl bg-cyan-500/10 flex items-center justify-center text-4xl border border-cyan-500/20 relative z-10 neon-border">
-                        {user.avatar}
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-[10px] font-sync text-cyan-500 mb-1">UNIT_ID</p>
-                        <h2 className="text-2xl font-cyber text-white neon-text">{user.username}</h2>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="hud-panel p-4 rounded-xl text-center">
-                        <p className="text-[7px] font-sync text-gray-500 mb-1">WIN_RATE</p>
-                        <p className="text-xl font-cyber text-emerald-400">
-                            {user?.stats?.matchesPlayed 
-                                ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) 
-                                : '0'}%
-                        </p>
-                    </div>
-                    <div className="hud-panel p-4 rounded-xl text-center">
-                        <p className="text-[7px] font-sync text-gray-500 mb-1">SCORE_MAX</p>
-                        <p className="text-xl font-cyber text-cyan-400">{user.stats?.highestScore || 0}</p>
-                    </div>
-                    <div className="hud-panel p-4 rounded-xl text-center">
-                        <p className="text-[7px] font-sync text-gray-500 mb-1">RANK_LVL</p>
-                        <p className="text-xl font-cyber text-purple-400">0{user.stats?.wins || 0}</p>
-                    </div>
-                </div>
-              </motion.div>
-          ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-center">
-                <div className="inline-flex p-8 rounded-full hud-panel mb-2">
-                    <Cpu size={56} className="text-cyan-500/30 animate-pulse" />
-                </div>
-                <h2 className="text-xl font-cyber text-cyan-500">INITIALIZE IDENTITY</h2>
-                <div className="relative">
-                    <input 
-                    type="text" 
-                    placeholder="USERNAME_STRING"
-                    value={usernameInput}
-                    onChange={(e) => setUsernameInput(e.target.value.toUpperCase())}
-                    className="w-full hud-panel rounded-xl p-6 outline-none focus:border-cyan-500 transition-all text-center font-cyber text-xl tracking-widest bg-black/40"
-                    />
-                </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="space-y-6">
-            {/* 🛠️ MATCH CONFIG */}
-            <div className="hud-panel p-6 rounded-2xl space-y-5 border-t-2 border-cyan-500/20">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <Globe size={12} className="text-cyan-500" />
-                        <p className="text-[8px] font-sync text-cyan-500"> PROTOCOL</p>
-                    </div>
-                    <div className="flex gap-2">
-                        {(['SINGLE_WICKET', 'OVERS', 'TEST'] as const).map(m => (
-                            <button 
-                                key={m} 
-                                onClick={() => setMatchMode(m)}
-                                className={`text-[9px] font-cyber px-4 py-2 rounded-lg border transition-all ${matchMode === m ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-black/40 text-cyan-700 border-white/5 hover:border-cyan-500/30'}`}
-                            >
-                                {m.split('_')[0]}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {matchMode === 'OVERS' && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-between items-center pt-3 border-t border-white/5">
-                        <p className="text-[8px] font-sync text-gray-500">LIMIT_CYCLES</p>
-                        <div className="flex gap-2">
-                            {[2, 5, 10].map(ov => (
-                                <button key={ov} onClick={() => setOversConfig(ov)} className={`w-10 h-10 rounded-lg font-cyber text-xs transition-all border ${oversConfig === ov ? 'bg-white text-black border-white' : 'bg-black/40 text-gray-500 border-white/10'}`}>{ov}</button>
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-            </div>
-
-            {/* 🕹️ ACTIONS */}
-            <div className="grid gap-4">
-                <button onClick={() => handleStartGame('create')} className="btn-cyber btn-primary-neon group py-6">
-                    <Zap size={24} />
-                    <span className="font-cyber text-2xl">CREATE REALM</span>
-                    <ChevronRight size={20} className="ml-auto group-hover:translate-x-2 transition-transform" />
-                </button>
-
-                <div className="relative group">
-                    <input 
-                        type="text" 
-                        placeholder="ENTER REALM_TOKEN"
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                        className="w-full hud-panel rounded-xl p-6 pr-40 outline-none focus:border-pink-500 transition-all font-cyber text-lg bg-black/40"
-                    />
-                    <button onClick={() => handleStartGame('join')} className="absolute right-3 top-3 bottom-3 bg-pink-600 hover:bg-pink-500 text-white px-8 rounded-lg text-[10px] font-cyber transition-all">CONNECT</button>
-                </div>
-            </div>
-
-            {/* 🤖 AI CORE */}
-            <div className="hud-panel p-6 rounded-2xl space-y-5 border-t-2 border-purple-500/20">
-               <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                      <Cpu size={12} className="text-purple-500" />
-                      <p className="text-[8px] font-sync text-purple-500">NEURAL DIFFICULTY</p>
-                  </div>
-                  <div className="flex gap-2">
-                     {(['BASIC', 'MEDIUM', 'HIGH', 'ULTRA'] as const).map((level) => (
-                        <button 
-                           key={level}
-                           onClick={() => setDifficulty(level)}
-                           className={`text-[8px] font-cyber px-3 py-1.5 rounded-lg border transition-all ${difficulty === level ? 'bg-purple-600 text-white border-purple-400' : 'bg-black/40 text-purple-800 border-white/5 hover:border-purple-500/30'}`}
-                        >
-                           {level}
-                        </button>
-                     ))}
-                  </div>
-               </div>
-               <button onClick={() => handleStartGame('bot')} className="w-full btn-cyber hover:bg-purple-500/10 group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
-                    <Activity size={24} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-cyber text-xl leading-none">AI SIMULATION</p>
-                    <p className="text-[7px] font-sync text-gray-600">OFFLINE TRAINING MODULE</p>
-                  </div>
-                  <Play size={20} className="ml-auto text-purple-500" />
-               </button>
-            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* 🧭 NAV */}
-      <div className="p-8 pt-0 grid grid-cols-2 gap-4 z-20">
-         <button onClick={() => setShowHowTo(true)} className="py-4 btn-cyber text-[10px] font-cyber opacity-60 hover:opacity-100">
-            <Info size={14} /> MANUAL
-         </button>
-         <button onClick={() => router.push('/demo')} className="py-4 btn-cyber text-[10px] font-cyber text-cyan-400 border-cyan-500/20">
-            <Play size={14} /> PRACTICE
-         </button>
-      </div>
+      {/* 📊 LEFT SIDEBAR: PROFILE & STATS */}
+      <aside className="layout-sidebar-left no-scrollbar">
+        <section className="card-premium">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-surface-3 flex items-center justify-center text-4xl border border-glass-border">
+              {user?.avatar || '👤'}
+            </div>
+            <div>
+              <p className="text-[10px] text-accent-primary font-bold uppercase tracking-widest">Player Profile</p>
+              <h2 className="text-2xl font-display">{user?.username || 'GUEST_USER'}</h2>
+            </div>
+          </div>
+
+          {!user ? (
+            <div className="space-y-4">
+              <p className="text-xs text-foreground-muted">Enter your handle to start competing in the premier league.</p>
+              <input 
+                type="text" 
+                placeholder="USERNAME"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value.toUpperCase())}
+                className="input-premium font-display text-xl tracking-widest"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="stat-box">
+                <p className="text-[9px] text-foreground-muted font-bold uppercase">Matches</p>
+                <p className="text-2xl font-display">{user.stats?.matchesPlayed || 0}</p>
+              </div>
+              <div className="stat-box">
+                <p className="text-[9px] text-foreground-muted font-bold uppercase">Wins</p>
+                <p className="text-2xl font-display text-accent-secondary">{user.stats?.wins || 0}</p>
+              </div>
+              <div className="stat-box col-span-2">
+                <p className="text-[9px] text-foreground-muted font-bold uppercase">Win Rate</p>
+                <div className="flex items-end gap-2">
+                  <p className="text-3xl font-display">
+                    {user.stats?.matchesPlayed 
+                      ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) 
+                      : '0'}%
+                  </p>
+                  <div className="flex-1 h-2 bg-surface-3 rounded-full mb-2 overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${user.stats?.matchesPlayed ? (user.stats.wins / user.stats.matchesPlayed) * 100 : 0}%` }}
+                      className="height-full bg-accent-secondary h-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="card-premium">
+          <h3 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Medal size={14} className="text-accent-primary" /> Achievements
+          </h3>
+          <div className="space-y-3">
+            {[
+              { icon: <Zap size={12}/>, title: 'Century Maker', desc: 'Score 100 runs in a match' },
+              { icon: <Target size={12}/>, title: 'Deadly Bowler', desc: 'Take 5 wickets in an over' },
+              { icon: <ShieldCheck size={12}/>, title: 'Veteran', desc: 'Play 50 matches' },
+            ].map((ach, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-surface-2 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-help">
+                <div className="w-8 h-8 rounded bg-surface-3 flex items-center justify-center text-accent-primary">
+                  {ach.icon}
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase">{ach.title}</p>
+                  <p className="text-[8px] text-foreground-muted">{ach.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </aside>
+
+      {/* 🏏 MAIN CONTENT: MATCH CONTROLS */}
+      <main className="layout-main no-scrollbar">
+        <section className="card-premium flex-1 flex flex-col justify-center p-12 text-center bg-gradient-to-b from-surface-2 to-surface-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto w-full space-y-12"
+          >
+            <div>
+              <h2 className="text-6xl font-display mb-2">READY FOR THE NEXT <span className="text-accent-primary">INNINGS?</span></h2>
+              <p className="text-foreground-muted">Select your match protocol and enter the arena.</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {(['SINGLE_WICKET', 'OVERS', 'TEST'] as const).map(m => (
+                <button 
+                  key={m} 
+                  onClick={() => setMatchMode(m)}
+                  className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${
+                    matchMode === m 
+                      ? 'border-accent-primary bg-accent-primary/5 text-accent-primary' 
+                      : 'border-glass-border bg-surface-2 text-foreground-muted hover:border-foreground-muted'
+                  }`}
+                >
+                  {m === 'SINGLE_WICKET' && <Target size={32} />}
+                  {m === 'OVERS' && <Clock size={32} />}
+                  {m === 'TEST' && <ShieldCheck size={32} />}
+                  <span className="font-display text-xl">{m.replace('_', ' ')}</span>
+                </button>
+              ))}
+            </div>
+
+            {matchMode === 'OVERS' && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-center items-center gap-6 p-6 rounded-2xl bg-surface-2 border border-glass-border">
+                <span className="text-sm font-bold uppercase tracking-widest text-foreground-muted">Match Length</span>
+                <div className="flex gap-3">
+                  {[2, 5, 10, 20].map(ov => (
+                    <button 
+                      key={ov} 
+                      onClick={() => setOversConfig(ov)} 
+                      className={`w-14 h-14 rounded-xl font-display text-2xl transition-all border-2 ${
+                        oversConfig === ov ? 'bg-accent-primary text-black border-accent-primary' : 'bg-surface-3 text-foreground-muted border-glass-border hover:border-foreground-muted'
+                      }`}
+                    >
+                      {ov}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-sm font-bold uppercase tracking-widest text-foreground-muted">Overs</span>
+              </motion.div>
+            )}
+
+            <div className="grid grid-cols-2 gap-6">
+              <button 
+                onClick={() => handleStartGame('create')}
+                className="btn-action flex items-center justify-center gap-4"
+              >
+                <Zap size={24} /> Create Realm
+              </button>
+              
+              <div className="relative group">
+                <input 
+                  type="text" 
+                  placeholder="ENTER REALM CODE"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  className="input-premium font-display text-2xl tracking-[0.2em] h-full pr-32"
+                />
+                <button 
+                  onClick={() => handleStartGame('join')}
+                  className="absolute right-2 top-2 bottom-2 bg-white text-black font-bold px-6 rounded-lg text-xs uppercase hover:bg-accent-primary transition-colors"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-4">
+          <button onClick={() => setShowHowTo(true)} className="btn-premium py-4">
+            <Info size={18} /> Match Manual
+          </button>
+          <button onClick={() => router.push('/demo')} className="btn-premium py-4 border-accent-secondary/30 text-accent-secondary hover:bg-accent-secondary hover:text-black">
+            <Gamepad2 size={18} /> Training Grounds
+          </button>
+        </div>
+      </main>
+
+      {/* 🤖 RIGHT SIDEBAR: AI & ACTIVITY */}
+      <aside className="layout-sidebar-right no-scrollbar">
+        <section className="card-premium">
+          <div className="flex items-center gap-2 mb-6">
+            <Cpu className="text-accent-secondary" size={20} />
+            <h3 className="text-xs font-bold uppercase tracking-widest">AI Simulation</h3>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-2">
+              {(['BASIC', 'MEDIUM', 'HIGH', 'ULTRA'] as const).map((level) => (
+                <button 
+                  key={level}
+                  onClick={() => setDifficulty(level)}
+                  className={`py-3 rounded-lg border font-display text-sm transition-all ${
+                    difficulty === level 
+                      ? 'bg-accent-secondary text-black border-accent-secondary' 
+                      : 'bg-surface-2 text-foreground-muted border-glass-border hover:border-accent-secondary/50'
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => handleStartGame('bot')}
+              className="w-full btn-premium bg-accent-secondary/10 border-accent-secondary/20 text-accent-secondary hover:bg-accent-secondary hover:text-black py-4 group"
+            >
+              <Play size={18} className="group-hover:fill-black" />
+              <span className="font-display text-lg uppercase">Start AI Match</span>
+            </button>
+          </div>
+        </section>
+
+        <section className="card-premium flex-1">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+              <Signal size={14} className="text-accent-secondary" /> Recent Matches
+            </h3>
+            <button className="text-[9px] font-bold uppercase text-accent-primary hover:underline">View All</button>
+          </div>
+          
+          <div className="space-y-3">
+            {[
+              { vs: 'BOT_ULTRA', result: 'WON', score: '42/0' },
+              { vs: 'PLAYER_921', result: 'LOST', score: '12/1' },
+              { vs: 'BOT_HIGH', result: 'WON', score: '38/0' },
+            ].map((match, i) => (
+              <div key={i} className="p-3 rounded-xl bg-surface-2 border border-glass-border flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-tighter">vs {match.vs}</p>
+                  <p className="text-[9px] text-foreground-muted">{match.score}</p>
+                </div>
+                <span className={`text-[9px] font-black px-2 py-1 rounded ${
+                  match.result === 'WON' ? 'bg-accent-secondary/10 text-accent-secondary' : 'bg-accent-danger/10 text-accent-danger'
+                }`}>
+                  {match.result}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="card-premium bg-accent-primary/5 border-accent-primary/20 p-4 text-center">
+          <p className="text-[10px] font-bold text-accent-primary uppercase mb-1">Weekly Tournament</p>
+          <p className="text-xs text-foreground-muted mb-3">Compete for the Golden Glove</p>
+          <div className="flex items-center justify-center gap-2">
+            <Users size={12} />
+            <span className="text-[10px] font-bold">428 Registered</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* 🧭 FOOTER */}
+      <footer className="layout-footer">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-accent-secondary" />
+          <span>System Operational</span>
+        </div>
+        <div className="w-1 h-1 rounded-full bg-surface-3" />
+        <span>HPL – Hand Cricket Premier League © 2026</span>
+        <div className="w-1 h-1 rounded-full bg-surface-3" />
+        <span className="text-accent-primary cursor-pointer hover:underline">Support</span>
+      </footer>
 
       <HowToPlay isOpen={showHowTo} onClose={() => setShowHowTo(false)} />
+      
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 bg-accent-danger text-white rounded-full font-bold text-sm shadow-2xl z-50 flex items-center gap-3"
+        >
+          <ShieldCheck size={18} /> {error}
+        </motion.div>
+      )}
     </div>
   );
 }
+
